@@ -4,12 +4,17 @@ require 'sprite_utils'
 require 'mode_manager'
 
 local MainMenu = require 'main_menu_mode'
+local PlayMode = require 'play_mode'
 
 globalState = {}
 globalState.mode = ""
 
 -- declaring for clarity
 currentMode = nil
+
+vpWidth = 160
+vpHeight= 144
+scale = 3
 
 defaultFont12Pt = love.graphics.newFont(12)
 defaultFont14Pt = love.graphics.newFont(14)
@@ -22,7 +27,10 @@ scaledSpriteWidth = spriteWidth * spriteScale
 
 function love.load()
     math.randomseed(os.time())
+    love.window.setMode(vpWidth * scale, vpHeight * scale)
+    love.graphics.setDefaultFilter("nearest", "nearest")
     RegisterGameMode("Main Menu", MainMenu)
+    RegisterGameMode("Play Mode", PlayMode)
     SetCurrentGameMode("Main Menu", nil, true)
 end
 

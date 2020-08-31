@@ -41,6 +41,7 @@ function GameMode:HandleKeyPressed(key, scancode, isrepeat)
         if mainMenuSelectedItemIdx <= 0 then mainMenuSelectedItemIdx = 1 end
     elseif key == "return" then
         if mainMenuSelectedItemIdx == 1 then
+            SetCurrentGameMode("Play Mode", nil, true)
         elseif mainMenuSelectedItemIdx == 2 then
         elseif mainMenuSelectedItemIdx == 3 then
         elseif mainMenuSelectedItemIdx == 4 then
@@ -60,6 +61,7 @@ end
 function GameMode:HandleMouseReleased(x, y, button, istouch, presses)
     if not mainMenuClickPrimed then return end
     if mainMenuSelectedItemIdx == 1 then
+        SetCurrentGameMode("Play Mode", nil, true)
     elseif mainMenuSelectedItemIdx == 2 then
     elseif mainMenuSelectedItemIdx == 3 then
     elseif mainMenuSelectedItemIdx == 4 then

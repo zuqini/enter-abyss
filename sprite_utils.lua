@@ -26,6 +26,10 @@ function drawAnimation(animation, x, y, r, sx, sy, ox, oy)
     love.graphics.draw(animation.spriteSheet.image, animation.spriteSheet.quads[spriteNum], x, y, r, sx, sy, ox, oy)
 end
 
+function drawSprite(spriteSheet, quadsIndex, x, y, r, sx, sr, ox, oy)
+    love.graphics.draw(spriteSheet.image, spriteSheet.quads[quadsIndex], x, y, r, sx, sr, ox, oy)
+end
+
 function newSpriteSheet(image, width, height, padding)
     local spriteSheet = {}
     spriteSheet.image = image;
