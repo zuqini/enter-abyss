@@ -1,8 +1,11 @@
+require 'camera'
+require 'slidable_utils'
+
 local GameMode = {}
 GameMode.modeName = "Play Mode"
 
-local worldWidth = vpWidth
-local worldHeight = vpHeight
+local worldWidth = resWidth
+local worldHeight = resHeight
 
 local player = {}
 local objects = {}
@@ -15,6 +18,7 @@ local function getAngle(orientation, pitch)
 end
 
 function GameMode:Init()
+    camera = cameraInit(resWidth, resHeight, 0, 0, 1, 1, 0)
     player = {
         forwardThrust = 1500,
         angularThrust = 0.03,
@@ -80,6 +84,8 @@ end
 function GameMode:Update(dt)
     world:update(dt) --this puts the world into motion
     psystem:update(dt)
+    cameraSetTargetCenter(camera, player.body:getX(), player.body:getY())
+    cameraSetPositionCenter(camera, player.body:getX(), player.body:getY())
  
     --here we are going to create some keyboard events
     if love.keyboard.isDown("d") then --press the right arrow key to push the ball to the right
@@ -115,17 +121,19 @@ function GameMode:Update(dt)
 end
 
 function GameMode:Draw()
-    love.graphics.scale(scale, scale)
-    love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
-    love.graphics.polygon("line", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
-     
-    love.graphics.setColor(0.20, 0.20, 0.20)
-    love.graphics.polygon("fill", objects.block1.body:getWorldPoints(objects.block1.shape:getPoints()))
-    love.graphics.polygon("fill", objects.block2.body:getWorldPoints(objects.block2.shape:getPoints()))
+    love.graphics.scale(resScale, resScale)
+    cameraSet(camera)
+        love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
+        love.graphics.polygon("line", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
+        
+        love.graphics.setColor(0.20, 0.20, 0.20)
+        love.graphics.polygon("fill", objects.block1.body:getWorldPoints(objects.block1.shape:getPoints()))
+        love.graphics.polygon("fill", objects.block2.body:getWorldPoints(objects.block2.shape:getPoints()))
 
-    love.graphics.setColor(1,1,1)
-    drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
-    love.graphics.draw(psystem, 0, 0)
+        love.graphics.setColor(1,1,1)
+        drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
+        love.graphics.draw(psystem, 0, 0)
+    cameraUnset(camera)
 
     --love.graphics.setColor(0.76, 0.18, 0.05) --set the drawing color to red for the ball
     --love.graphics.circle("fill", player.body:getX(), player.body:getY(), player.shape:getRadius())
