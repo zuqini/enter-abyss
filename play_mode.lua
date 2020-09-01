@@ -11,7 +11,7 @@ local psystem = nil
 
 function GameMode:Init()
     player = {
-        forwardThrust = 1200,
+        forwardThrust = 1500,
         angularThrust = 0.03,
         pitch = 0,
         orientation = 1,
@@ -51,9 +51,10 @@ function GameMode:Init()
         love.graphics.setColor(106/255, 190/255, 48/255, 1)
         love.graphics.circle("fill", 1, 1, 1)
     love.graphics.setCanvas()
-    psystem = love.graphics.newParticleSystem(particle_canvas, 128)
+    psystem = love.graphics.newParticleSystem(particle_canvas, 512)
     psystem:setParticleLifetime(1, 2)
     psystem:setSizeVariation(1)
+    psystem:setEmissionRate(0)
 end
 
 function GameMode:HandleKeyReleased(key, scancode, isrepeat)
@@ -91,10 +92,12 @@ function GameMode:Update(dt)
 
     if love.keyboard.isDown('j') then
         player.body:applyForce(player.forwardThrust * player.orientation * math.cos(player.pitch), -player.forwardThrust * math.sin(player.pitch))
-        psystem:setPosition(player.body:getX() - player.orientation * 8, player.body:getY())
+        local direction = -player.orientation * player.pitch + (player.orientation > 0 and math.pi or 0)
+        psystem:setPosition(player.body:getX() + math.cos(direction) * 8, player.body:getY() + math.sin(direction) * 8)
         psystem:setSpeed(10,20)
-        psystem:setDirection(player.pitch + (player.orientation > 0 and math.pi or 0))
-        psystem:emit(32)
+        psystem:setSpread(1)
+        psystem:setDirection(direction)
+        psystem:emit(2)
     end
     if love.keyboard.isDown('k') then
     end
@@ -111,11 +114,11 @@ function GameMode:Draw()
     love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
     love.graphics.polygon("line", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
      
-    love.graphics.setColor(0.20, 0.20, 0.20) -- set the drawing color to grey for the blocks
+    love.graphics.setColor(0.20, 0.20, 0.20)
     love.graphics.polygon("fill", objects.block1.body:getWorldPoints(objects.block1.shape:getPoints()))
     love.graphics.polygon("fill", objects.block2.body:getWorldPoints(objects.block2.shape:getPoints()))
 
-    love.graphics.setColor(1,1,1) -- set the drawing color to grey for the blocks
+    love.graphics.setColor(1,1,1)
     drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
     love.graphics.draw(psystem, 0, 0)
 
