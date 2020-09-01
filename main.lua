@@ -3,9 +3,6 @@ require 'utils'
 require 'sprite_utils'
 require 'mode_manager'
 
-local MainMenu = require 'main_menu_mode'
-local PlayMode = require 'play_mode'
-
 globalState = {}
 globalState.mode = ""
 
@@ -24,6 +21,9 @@ spriteWidth = 128
 spriteHeight = spriteWidth
 spriteScale = 0.5
 scaledSpriteWidth = spriteWidth * spriteScale
+
+local MainMenu = require 'main_menu_mode'
+local PlayMode = require 'play_mode'
 
 function love.load()
     math.randomseed(os.time())

@@ -91,7 +91,7 @@ function GameMode:Update(dt)
 end
 
 function GameMode:Draw()
-    love.graphics.setBackgroundColor(0.2,0.2,0.6)
+    love.graphics.setBackgroundColor(55/255,148/255,110/255)
     --love.graphics.draw(logo, love.graphics.getWidth()/2 - logo:getWidth()/2, love.graphics.getHeight() * 0.25)
     love.graphics.setColor(1, 1, 1, 1)
     for i=1,#mainMenuItems do
