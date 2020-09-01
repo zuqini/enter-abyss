@@ -9,6 +9,11 @@ local objects = {}
 local world = nil
 local psystem = nil
 
+-- utils
+local function getAngle(orientation, pitch)
+    return -orientation * pitch + (orientation > 0 and math.pi or 0)
+end
+
 function GameMode:Init()
     player = {
         forwardThrust = 1500,
@@ -92,11 +97,11 @@ function GameMode:Update(dt)
 
     if love.keyboard.isDown('j') then
         player.body:applyForce(player.forwardThrust * player.orientation * math.cos(player.pitch), -player.forwardThrust * math.sin(player.pitch))
-        local direction = -player.orientation * player.pitch + (player.orientation > 0 and math.pi or 0)
-        psystem:setPosition(player.body:getX() + math.cos(direction) * 8, player.body:getY() + math.sin(direction) * 8)
+        local angle = getAngle(player.orientation, player.pitch)
+        psystem:setPosition(player.body:getX() + math.cos(angle) * 8, player.body:getY() + math.sin(angle) * 8)
         psystem:setSpeed(10,20)
         psystem:setSpread(1)
-        psystem:setDirection(direction)
+        psystem:setDirection(angle)
         psystem:emit(2)
     end
     if love.keyboard.isDown('k') then
