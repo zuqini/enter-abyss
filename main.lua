@@ -11,7 +11,7 @@ currentMode = nil
 
 resWidth = 160
 resHeight= 144
-scale = 3
+resScale = 3
 
 defaultFont12Pt = love.graphics.newFont(12)
 defaultFont14Pt = love.graphics.newFont(14)
@@ -27,7 +27,7 @@ local PlayMode = require 'play_mode'
 
 function love.load()
     math.randomseed(os.time())
-    love.window.setMode(resWidth * scale, resHeight * scale)
+    love.window.setMode(resWidth * resScale, resHeight * resScale)
     love.graphics.setDefaultFilter("nearest", "nearest")
     RegisterGameMode("Main Menu", MainMenu)
     RegisterGameMode("Play Mode", PlayMode)

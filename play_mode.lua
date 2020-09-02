@@ -4,13 +4,15 @@ require 'slidable_utils'
 local GameMode = {}
 GameMode.modeName = "Play Mode"
 
-local worldWidth = resWidth
-local worldHeight = resHeight
+local worldWidth = resWidth * 3
+local worldHeight = resHeight * 3
 
 local player = {}
 local objects = {}
 local world = nil
 local psystem = nil
+
+persisting = 0
 
 -- utils
 local function getAngle(orientation, pitch)
@@ -19,6 +21,7 @@ end
 
 function GameMode:Init()
     camera = cameraInit(resWidth, resHeight, 0, 0, 1, 1, 0)
+    backgroundSprite = newSpriteSheet(love.graphics.newImage("assets/Background-1.png"), 32, 32)
     player = {
         forwardThrust = 1500,
         angularThrust = 0.03,
@@ -29,29 +32,41 @@ function GameMode:Init()
 
     love.physics.setMeter(1)
     world = love.physics.newWorld(0, 9.81 * 0.25, true)
+    world:setCallbacks(beginContact, endContact, preSolve, postSolve)
 
     --let's create a ball
     player.body = love.physics.newBody(world, worldWidth/2, worldHeight/2, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
     player.fixture = love.physics.newFixture(player.body, player.shape, 1) -- Attach fixture to body and give it a density of 1.
-    player.fixture:setRestitution(0.9) --let the ball bounce
+    player.fixture:setRestitution(0.9)
+    player.fixture:setUserData({
+        name = "player"
+    })
 
     --let's create the ground
     objects.ground = {}
-    objects.ground.body = love.physics.newBody(world, worldWidth/2, worldHeight-10/2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    objects.ground.shape = love.physics.newRectangleShape(worldWidth, 10) --make a rectangle with a width of 650 and a height of 50
+    objects.ground.body = love.physics.newBody(world, worldWidth/2, worldHeight/2 + 40) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.ground.shape = love.physics.newRectangleShape(worldWidth, 10)
     objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape) --attach shape to body
+    objects.ground.fixture:setUserData({
+        name = "ground"
+    })
     
     --let's create a couple blocks to play around with
-    objects.block1 = {}
-    objects.block1.body = love.physics.newBody(world, 200, 550, "dynamic")
-    objects.block1.shape = love.physics.newRectangleShape(0, 0, 50, 100)
-    objects.block1.fixture = love.physics.newFixture(objects.block1.body, objects.block1.shape, 5) -- A higher density gives it more mass.
+    crateSprite = newSpriteSheet(love.graphics.newImage("assets/Crate-1.png"), 12, 12)
+    objects.crates = {}
     
-    objects.block2 = {}
-    objects.block2.body = love.physics.newBody(world, 200, 400, "dynamic")
-    objects.block2.shape = love.physics.newRectangleShape(0, 0, 100, 50)
-    objects.block2.fixture = love.physics.newFixture(objects.block2.body, objects.block2.shape, 2)
+    for i = 1, 5 do
+        objects.crates[i] = {}
+        objects.crates[i].body = love.physics.newBody(world, worldWidth/2 + 16 * i, worldHeight/2, "dynamic")
+        objects.crates[i].shape = love.physics.newRectangleShape(0, 0, 12, 12)
+        objects.crates[i].fixture = love.physics.newFixture(objects.crates[i].body, objects.crates[i].shape, 2) -- A higher density gives it more mass.
+        objects.crates[i].fixture:setRestitution(0.1)
+        objects.crates[i].fixture:setUserData({
+            name = "crate",
+            index = i
+        })
+    end
 
     particle_canvas = love.graphics.newCanvas(1, 1)
     love.graphics.setCanvas(particle_canvas)
@@ -123,14 +138,19 @@ end
 function GameMode:Draw()
     love.graphics.scale(resScale, resScale)
     cameraSet(camera)
+        love.graphics.setColor(1,1,1)
+        for i = 1, math.ceil(worldWidth / 32) do
+            for j = 1, math.ceil(worldHeight / 32) do
+                drawSprite(backgroundSprite, 1, (i - 1) * 32, (j - 1) * 32, 0, 1, 1, 16, 16)
+            end
+        end
         love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
-        love.graphics.polygon("line", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
-        
-        love.graphics.setColor(0.20, 0.20, 0.20)
-        love.graphics.polygon("fill", objects.block1.body:getWorldPoints(objects.block1.shape:getPoints()))
-        love.graphics.polygon("fill", objects.block2.body:getWorldPoints(objects.block2.shape:getPoints()))
+        love.graphics.polygon("fill", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
 
         love.graphics.setColor(1,1,1)
+        for i = 1, #objects.crates do
+            drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].getAngle, 1, 1, 6, 6)
+        end
         drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
         love.graphics.draw(psystem, 0, 0)
     cameraUnset(camera)
@@ -152,6 +172,30 @@ function GameMode:SetExternalState(globalState, sharedState)
     if globalState ~= nil then
         globalStateRef = globalState
     end
+end
+
+-- physics callbacks``
+
+function beginContact(a, b, coll)
+    x,y = coll:getNormal()
+    print(a:getUserData().name.." colliding with "..b:getUserData().name.." with a vector normal of: "..x..", "..y)
+end
+
+function endContact(a, b, coll)
+    persisting = 0    -- reset since they're no longer touching
+    print(a:getUserData().name.." uncolliding with "..b:getUserData().name)
+end
+
+function preSolve(a, b, coll)
+    if persisting == 0 then    -- only say when they first start touching
+        print(a:getUserData().name.." touching "..b:getUserData().name)
+    elseif persisting < 20 then    -- then just start counting
+        print(" "..persisting)
+    end
+    persisting = persisting + 1    -- keep track of how many updates they've been touching for
+end
+
+function postSolve(a, b, coll, normalimpulse, tangentimpulse)
 end
 
 return GameMode
