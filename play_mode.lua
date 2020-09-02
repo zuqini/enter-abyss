@@ -6,6 +6,7 @@ GameMode.modeName = "Play Mode"
 
 local worldWidth = resWidth * 3
 local worldHeight = resHeight * 3
+local parallaxScale = 0.2
 
 local crateColBuffer = {}
 local player = {}
@@ -30,7 +31,8 @@ function GameMode:Init()
         orientation = 1,
         animation = newAnimation(love.graphics.newImage("assets/Sub-sheet.png"), 18, 16, 0.5),
         sprite = newSpriteSheet(love.graphics.newImage("assets/Submarine-smol-2.png"), 18, 16),
-        joints = {}
+        joints = {},
+        crates = {},
     }
 
     love.physics.setMeter(1)
@@ -75,7 +77,8 @@ function GameMode:Init()
         objects.crates[i].fixture:setRestitution(0.1)
         objects.crates[i].fixture:setUserData({
             name = "crate",
-            index = i
+            index = i,
+            isAttached = false
         })
     end
 
@@ -112,7 +115,20 @@ function GameMode:Update(dt)
         local crate = objects.crates[crateCol.index]
         crateColBuffer[i] = nil
 
-        table.insert(player.joints, love.physics.newRopeJoint(player.body, crate.body, player.body:getX(), player.body:getY(), crate.body:getX(), crate.body:getY(), 20, false))
+        local userData = crate.fixture:getUserData()
+        if not userData.isAttached then
+            userData.isAttached = true
+            crate.fixture:setUserData(userData)
+
+            if #player.crates == 0 then
+                table.insert(player.joints, love.physics.newRopeJoint(player.body, crate.body, player.body:getX(), player.body:getY(), crate.body:getX(), crate.body:getY(), 20, false))
+            else
+                local playerCrateData = player.crates[#player.crates]
+                local playerCrate = objects.crates[playerCrateData.index]
+                table.insert(player.joints, love.physics.newRopeJoint(playerCrate.body, crate.body, playerCrate.body:getX(), playerCrate.body:getY(), crate.body:getX(), crate.body:getY(), 20, false))
+            end
+            table.insert(player.crates, crateCol)
+        end
     end
 
     cameraSetTargetCenter(camera, player.body:getX(), player.body:getY())
@@ -153,13 +169,17 @@ end
 
 function GameMode:Draw()
     love.graphics.scale(resScale, resScale)
-    cameraSet(camera)
+
+    love.graphics.translate(-camera.x * parallaxScale, -camera.y * parallaxScale)
         love.graphics.setColor(1,1,1)
         for i = 1, math.ceil(worldWidth / 32) do
             for j = 1, math.ceil(worldHeight / 32) do
                 drawSprite(backgroundSprite, 1, (i - 1) * 32, (j - 1) * 32, 0, 1, 1, 16, 16)
             end
         end
+    love.graphics.translate(camera.x * parallaxScale, camera.y * parallaxScale)
+
+    cameraSet(camera)
         love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
         love.graphics.polygon("fill", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
         love.graphics.polygon("fill", objects.ceil.body:getWorldPoints(objects.ceil.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
@@ -168,6 +188,19 @@ function GameMode:Draw()
         for i = 1, #objects.crates do
             drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].body:getAngle(), 1, 1, 6, 6)
         end
+        for i = 1, #player.crates do
+            local playerCrateData = player.crates[i]
+            local playerCrate = objects.crates[playerCrateData.index]
+            love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
+            if i == 1 then
+                love.graphics.line(player.body:getX(), player.body:getY(), playerCrate.body:getX(), playerCrate.body:getY())
+            else
+                local prevCrate = objects.crates[player.crates[i - 1].index]
+                love.graphics.line(playerCrate.body:getX(), playerCrate.body:getY(), prevCrate.body:getX(), prevCrate.body:getY())
+            end
+        end
+
+        love.graphics.setColor(1,1,1)
         drawAnimation(player.animation, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
         --drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
         love.graphics.draw(psystem, 0, 0)
