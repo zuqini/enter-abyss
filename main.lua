@@ -29,6 +29,10 @@ function love.load()
     math.randomseed(os.time())
     love.window.setMode(resWidth * resScale, resHeight * resScale)
     love.graphics.setDefaultFilter("nearest", "nearest")
+
+    backgroundMusic = love.audio.newSource("assets/the-abyss.wav", "stream")
+    backgroundMusic:setVolume(0.6)
+
     RegisterGameMode("Main Menu", MainMenu)
     RegisterGameMode("Play Mode", PlayMode)
     SetCurrentGameMode("Main Menu", nil, true)

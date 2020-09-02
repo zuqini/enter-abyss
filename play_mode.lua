@@ -7,6 +7,7 @@ GameMode.modeName = "Play Mode"
 local worldWidth = resWidth * 3
 local worldHeight = resHeight * 3
 
+local crateColBuffer = {}
 local player = {}
 local objects = {}
 local world = nil
@@ -23,11 +24,13 @@ function GameMode:Init()
     camera = cameraInit(resWidth, resHeight, 0, 0, 1, 1, 0)
     backgroundSprite = newSpriteSheet(love.graphics.newImage("assets/Background-1.png"), 32, 32)
     player = {
-        forwardThrust = 1500,
+        forwardThrust = 60000 * 5,
         angularThrust = 0.03,
         pitch = 0,
         orientation = 1,
-        sprite = newSpriteSheet(love.graphics.newImage("assets/Submarine-smol.png"), 18, 16),
+        animation = newAnimation(love.graphics.newImage("assets/Sub-sheet.png"), 18, 16, 0.5),
+        sprite = newSpriteSheet(love.graphics.newImage("assets/Submarine-smol-2.png"), 18, 16),
+        joints = {}
     }
 
     love.physics.setMeter(1)
@@ -37,7 +40,7 @@ function GameMode:Init()
     --let's create a ball
     player.body = love.physics.newBody(world, worldWidth/2, worldHeight/2, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
-    player.fixture = love.physics.newFixture(player.body, player.shape, 1) -- Attach fixture to body and give it a density of 1.
+    player.fixture = love.physics.newFixture(player.body, player.shape, 10) -- Attach fixture to body and give it a density of 1.
     player.fixture:setRestitution(0.9)
     player.fixture:setUserData({
         name = "player"
@@ -51,16 +54,24 @@ function GameMode:Init()
     objects.ground.fixture:setUserData({
         name = "ground"
     })
+
+    objects.ceil = {}
+    objects.ceil.body = love.physics.newBody(world, worldWidth/2, 40) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.ceil.shape = love.physics.newRectangleShape(worldWidth, 10)
+    objects.ceil.fixture = love.physics.newFixture(objects.ceil.body, objects.ceil.shape) --attach shape to body
+    objects.ceil.fixture:setUserData({
+        name = "ceil"
+    })
     
     --let's create a couple blocks to play around with
-    crateSprite = newSpriteSheet(love.graphics.newImage("assets/Crate-1.png"), 12, 12)
+    crateSprite = newSpriteSheet(love.graphics.newImage("assets/Crate-2.png"), 12, 12)
     objects.crates = {}
     
     for i = 1, 5 do
         objects.crates[i] = {}
         objects.crates[i].body = love.physics.newBody(world, worldWidth/2 + 16 * i, worldHeight/2, "dynamic")
         objects.crates[i].shape = love.physics.newRectangleShape(0, 0, 12, 12)
-        objects.crates[i].fixture = love.physics.newFixture(objects.crates[i].body, objects.crates[i].shape, 2) -- A higher density gives it more mass.
+        objects.crates[i].fixture = love.physics.newFixture(objects.crates[i].body, objects.crates[i].shape, 1) -- A higher density gives it more mass.
         objects.crates[i].fixture:setRestitution(0.1)
         objects.crates[i].fixture:setUserData({
             name = "crate",
@@ -68,16 +79,9 @@ function GameMode:Init()
         })
     end
 
-    particle_canvas = love.graphics.newCanvas(1, 1)
-    love.graphics.setCanvas(particle_canvas)
-        love.graphics.clear()
-        love.graphics.setBlendMode("alpha")
-        love.graphics.setColor(106/255, 190/255, 48/255, 1)
-        love.graphics.circle("fill", 1, 1, 1)
-    love.graphics.setCanvas()
-    psystem = love.graphics.newParticleSystem(particle_canvas, 512)
+    psystem = love.graphics.newParticleSystem(love.graphics.newImage("assets/bubz.png"), 512)
     psystem:setParticleLifetime(1, 2)
-    psystem:setSizeVariation(1)
+    psystem:setSizes(0.125, 0.25, 0.375, 0.5)
     psystem:setEmissionRate(0)
 end
 
@@ -99,6 +103,18 @@ end
 function GameMode:Update(dt)
     world:update(dt) --this puts the world into motion
     psystem:update(dt)
+    updateAnimation(player.animation, dt)
+
+    -- handle physics collision buffer
+    for i = 1, #crateColBuffer do
+        print("handling collision buffer")
+        local crateCol = crateColBuffer[i]
+        local crate = objects.crates[crateCol.index]
+        crateColBuffer[i] = nil
+
+        table.insert(player.joints, love.physics.newRopeJoint(player.body, crate.body, player.body:getX(), player.body:getY(), crate.body:getX(), crate.body:getY(), 20, false))
+    end
+
     cameraSetTargetCenter(camera, player.body:getX(), player.body:getY())
     cameraSetPositionCenter(camera, player.body:getX(), player.body:getY())
  
@@ -121,7 +137,7 @@ function GameMode:Update(dt)
         local angle = getAngle(player.orientation, player.pitch)
         psystem:setPosition(player.body:getX() + math.cos(angle) * 8, player.body:getY() + math.sin(angle) * 8)
         psystem:setSpeed(10,20)
-        psystem:setSpread(1)
+        psystem:setSpread(3)
         psystem:setDirection(angle)
         psystem:emit(2)
     end
@@ -146,12 +162,14 @@ function GameMode:Draw()
         end
         love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
         love.graphics.polygon("fill", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
+        love.graphics.polygon("fill", objects.ceil.body:getWorldPoints(objects.ceil.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
 
         love.graphics.setColor(1,1,1)
         for i = 1, #objects.crates do
-            drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].getAngle, 1, 1, 6, 6)
+            drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].body:getAngle(), 1, 1, 6, 6)
         end
-        drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
+        drawAnimation(player.animation, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
+        --drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
         love.graphics.draw(psystem, 0, 0)
     cameraUnset(camera)
 
@@ -160,9 +178,11 @@ function GameMode:Draw()
 end
 
 function GameMode:TransitionIn()
+    backgroundMusic:play()
 end
 
 function GameMode:TransitionOut()
+    backgroundMusic:stop()
 end
 
 function GameMode:SetExternalState(globalState, sharedState)
@@ -179,18 +199,27 @@ end
 function beginContact(a, b, coll)
     x,y = coll:getNormal()
     print(a:getUserData().name.." colliding with "..b:getUserData().name.." with a vector normal of: "..x..", "..y)
+
+    if a:getUserData().name == "player" or b:getUserData().name == "player" then
+        if a:getUserData().name == "crate" then
+            table.insert(crateColBuffer, a:getUserData())
+        elseif b:getUserData().name == "crate" then
+            table.insert(crateColBuffer, b:getUserData())
+        end
+    end
+
 end
 
 function endContact(a, b, coll)
     persisting = 0    -- reset since they're no longer touching
-    print(a:getUserData().name.." uncolliding with "..b:getUserData().name)
+    -- print(a:getUserData().name.." uncolliding with "..b:getUserData().name)
 end
 
 function preSolve(a, b, coll)
     if persisting == 0 then    -- only say when they first start touching
-        print(a:getUserData().name.." touching "..b:getUserData().name)
+        -- print(a:getUserData().name.." touching "..b:getUserData().name)
     elseif persisting < 20 then    -- then just start counting
-        print(" "..persisting)
+        -- print(" "..persisting)
     end
     persisting = persisting + 1    -- keep track of how many updates they've been touching for
 end
