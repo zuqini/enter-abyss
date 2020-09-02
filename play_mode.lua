@@ -14,6 +14,8 @@ local objects = {}
 local world = nil
 local psystem = nil
 
+local fishMoveTimer = 1
+
 persisting = 0
 
 -- utils
@@ -41,6 +43,7 @@ function GameMode:Init()
 
     --let's create a ball
     player.body = love.physics.newBody(world, worldWidth/2, worldHeight/2, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
+    player.body:setFixedRotation(true)
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
     player.fixture = love.physics.newFixture(player.body, player.shape, 10) -- Attach fixture to body and give it a density of 1.
     player.fixture:setRestitution(0.9)
@@ -79,6 +82,21 @@ function GameMode:Init()
             name = "crate",
             index = i,
             isAttached = false
+        })
+    end
+
+    fishSprite = newSpriteSheet(love.graphics.newImage("assets/fish-1.png"), 12, 8)
+    objects.fishes = {}
+    for i = 1, 32 do
+        objects.fishes[i] = {}
+        objects.fishes[i].orientation = -1
+        objects.fishes[i].body = love.physics.newBody(world, math.random(1, worldWidth), math.random(1, worldHeight), "dynamic")
+        objects.fishes[i].body:setFixedRotation(true)
+        objects.fishes[i].shape = love.physics.newRectangleShape(0, 0, 12, 8)
+        objects.fishes[i].fixture = love.physics.newFixture(objects.fishes[i].body, objects.fishes[i].shape, 1) -- A higher density gives it more mass.
+        objects.fishes[i].fixture:setRestitution(0.1)
+        objects.fishes[i].fixture:setUserData({
+            name = "fish"
         })
     end
 
@@ -165,11 +183,23 @@ function GameMode:Update(dt)
     elseif player.pitch < 0 then
         player.pitch = player.pitch + 0.005
     end
+
+    if fishMoveTimer > 0.5 then
+        fishMoveTimer = 0
+        for i = 1, #objects.fishes do
+            local xForce = -50000 + 10000 * math.random(1, 10)
+            local yForce = -1000 * math.random(1, 10)
+            objects.fishes[i].body:applyForce(xForce, yForce)
+            objects.fishes[i].orientation = xForce < 0 and -1 or 1
+        end
+    end
+    fishMoveTimer = fishMoveTimer + dt
 end
 
 function GameMode:Draw()
     love.graphics.scale(resScale, resScale)
 
+    -- background
     love.graphics.translate(-camera.x * parallaxScale, -camera.y * parallaxScale)
         love.graphics.setColor(1,1,1)
         for i = 1, math.ceil(worldWidth / 32) do
@@ -180,14 +210,23 @@ function GameMode:Draw()
     love.graphics.translate(camera.x * parallaxScale, camera.y * parallaxScale)
 
     cameraSet(camera)
+        -- foreground
         love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
         love.graphics.polygon("fill", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
         love.graphics.polygon("fill", objects.ceil.body:getWorldPoints(objects.ceil.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
 
         love.graphics.setColor(1,1,1)
+        -- crates
         for i = 1, #objects.crates do
             drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].body:getAngle(), 1, 1, 6, 6)
         end
+
+        -- fishes
+        for i = 1, #objects.fishes do
+            drawSprite(fishSprite, 1, objects.fishes[i].body:getX(), objects.fishes[i].body:getY(), objects.fishes[i].body:getAngle(), -objects.fishes[i].orientation, 1, 6, 4)
+        end
+
+        -- crate lines
         for i = 1, #player.crates do
             local playerCrateData = player.crates[i]
             local playerCrate = objects.crates[playerCrateData.index]
@@ -200,9 +239,12 @@ function GameMode:Draw()
             end
         end
 
+        -- player
         love.graphics.setColor(1,1,1)
         drawAnimation(player.animation, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
         --drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
+
+        -- particles
         love.graphics.draw(psystem, 0, 0)
     cameraUnset(camera)
 

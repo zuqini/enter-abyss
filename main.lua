@@ -31,6 +31,7 @@ function love.load()
     love.graphics.setDefaultFilter("nearest", "nearest")
 
     backgroundMusic = love.audio.newSource("assets/the-abyss.wav", "stream")
+    backgroundMusic:setLooping(true)
     backgroundMusic:setVolume(0.6)
 
     RegisterGameMode("Main Menu", MainMenu)
