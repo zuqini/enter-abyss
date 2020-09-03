@@ -7,6 +7,7 @@ GameMode.modeName = "Play Mode"
 local worldWidth = resWidth * 3
 local worldHeight = resHeight * 3
 local parallaxScale = 0.2
+local foregroundParallaxScale = 3
 
 local crateColBuffer = {}
 local player = {}
@@ -25,7 +26,6 @@ end
 
 function GameMode:Init()
     camera = cameraInit(resWidth, resHeight, 0, 0, 1, 1, 0)
-    backgroundSprite = newSpriteSheet(love.graphics.newImage("assets/Background-1.png"), 32, 32)
     player = {
         forwardThrust = 60000 * 5,
         angularThrust = 0.03,
@@ -86,18 +86,53 @@ function GameMode:Init()
     end
 
     fishSprite = newSpriteSheet(love.graphics.newImage("assets/fish-1.png"), 12, 8)
+    jellyFishAnimation = newAnimation(love.graphics.newImage("assets/Jelly-sheet.png"), 7, 10, 0.5)
     objects.fishes = {}
-    for i = 1, 32 do
+    for i = 1, 64 do
         objects.fishes[i] = {}
         objects.fishes[i].orientation = -1
         objects.fishes[i].body = love.physics.newBody(world, math.random(1, worldWidth), math.random(1, worldHeight), "dynamic")
         objects.fishes[i].body:setFixedRotation(true)
-        objects.fishes[i].shape = love.physics.newRectangleShape(0, 0, 12, 8)
+        if math.random(1, 2) == 1 then
+            -- refactor to enum
+            objects.fishes[i].type = "fish"
+            objects.fishes[i].shape = love.physics.newRectangleShape(0, 0, 12, 8)
+        else
+            objects.fishes[i].type = "jelly"
+            objects.fishes[i].shape = love.physics.newRectangleShape(0, 0, 7, 10)
+        end
         objects.fishes[i].fixture = love.physics.newFixture(objects.fishes[i].body, objects.fishes[i].shape, 1) -- A higher density gives it more mass.
         objects.fishes[i].fixture:setRestitution(0.1)
         objects.fishes[i].fixture:setUserData({
             name = "fish"
         })
+    end
+
+    backgroundSprite = newSpriteSheet(love.graphics.newImage("assets/Background-1.png"), 32, 32)
+    backgroundBubzSprites = {
+        newSpriteSheet(love.graphics.newImage("assets/back-bubz-smol.png"), 2, 2),
+        newSpriteSheet(love.graphics.newImage("assets/back-bubz.png"), 4, 4),
+        newSpriteSheet(love.graphics.newImage("assets/back-bubz-big.png"), 6, 6),
+        newSpriteSheet(love.graphics.newImage("assets/back-bubz-fat.png"), 16, 16)
+    }
+    backgroundBubz = {}
+    for i = 1, 800 do
+        local bub = {}
+        -- consider adding physics
+        bub.size = math.random(1, 3)
+        bub.px = math.random(1, worldWidth * parallaxScale * bub.size * 5)
+        bub.py = math.random(1, worldHeight  * parallaxScale * bub.size * 5)
+        table.insert(backgroundBubz, bub)
+    end
+
+    foregroundBubz = {}
+    for i = 1, 800 do
+        local bub = {}
+        -- consider adding physics
+        bub.size = 4
+        bub.px = math.random(1, worldWidth * foregroundParallaxScale * 5)
+        bub.py = math.random(1, worldHeight * foregroundParallaxScale * 5)
+        table.insert(foregroundBubz, bub)
     end
 
     psystem = love.graphics.newParticleSystem(love.graphics.newImage("assets/bubz.png"), 512)
@@ -125,10 +160,11 @@ function GameMode:Update(dt)
     world:update(dt) --this puts the world into motion
     psystem:update(dt)
     updateAnimation(player.animation, dt)
+    updateAnimation(jellyFishAnimation, dt)
 
     -- handle physics collision buffer
     for i = 1, #crateColBuffer do
-        print("handling collision buffer")
+        -- print("handling collision buffer")
         local crateCol = crateColBuffer[i]
         local crate = objects.crates[crateCol.index]
         crateColBuffer[i] = nil
@@ -147,6 +183,25 @@ function GameMode:Update(dt)
             end
             table.insert(player.crates, crateCol)
         end
+    end
+
+    if fishMoveTimer > 0.5 then
+        fishMoveTimer = 0
+        for i = 1, #objects.fishes do
+            local xForce = -50000 + 10000 * math.random(1, 10)
+            local yForce = -1000 * math.random(1, 10)
+            objects.fishes[i].body:applyForce(xForce, yForce)
+            objects.fishes[i].orientation = xForce < 0 and -1 or 1
+        end
+    end
+    fishMoveTimer = fishMoveTimer + dt
+
+    for i = 1, #backgroundBubz do
+        backgroundBubz[i].py = backgroundBubz[i].py - 0.05
+    end
+
+    for i = 1, #foregroundBubz do
+        foregroundBubz[i].py = foregroundBubz[i].py - 0.05
     end
 
     cameraSetTargetCenter(camera, player.body:getX(), player.body:getY())
@@ -183,17 +238,6 @@ function GameMode:Update(dt)
     elseif player.pitch < 0 then
         player.pitch = player.pitch + 0.005
     end
-
-    if fishMoveTimer > 0.5 then
-        fishMoveTimer = 0
-        for i = 1, #objects.fishes do
-            local xForce = -50000 + 10000 * math.random(1, 10)
-            local yForce = -1000 * math.random(1, 10)
-            objects.fishes[i].body:applyForce(xForce, yForce)
-            objects.fishes[i].orientation = xForce < 0 and -1 or 1
-        end
-    end
-    fishMoveTimer = fishMoveTimer + dt
 end
 
 function GameMode:Draw()
@@ -202,12 +246,21 @@ function GameMode:Draw()
     -- background
     love.graphics.translate(-camera.x * parallaxScale, -camera.y * parallaxScale)
         love.graphics.setColor(1,1,1)
-        for i = 1, math.ceil(worldWidth / 32) do
-            for j = 1, math.ceil(worldHeight / 32) do
-                drawSprite(backgroundSprite, 1, (i - 1) * 32, (j - 1) * 32, 0, 1, 1, 16, 16)
-            end
-        end
+
+        -- background image
+        -- for i = 1, math.ceil(worldWidth / 32) do
+        --     for j = 1, math.ceil(worldHeight / 32) do
+        --         drawSprite(backgroundSprite, 1, (i - 1) * 32, (j - 1) * 32, 0, 1, 1, 16, 16)
+        --     end
+        -- end
     love.graphics.translate(camera.x * parallaxScale, camera.y * parallaxScale)
+
+    --bubbles
+    for i = 1, #backgroundBubz do
+        love.graphics.translate(-camera.x * parallaxScale * backgroundBubz[i].size, -camera.y * parallaxScale * backgroundBubz[i].size)
+            drawSprite(backgroundBubzSprites[backgroundBubz[i].size], 1, backgroundBubz[i].px, backgroundBubz[i].py, 0, 1, 1)
+        love.graphics.translate(camera.x * parallaxScale * backgroundBubz[i].size, camera.y * parallaxScale * backgroundBubz[i].size)
+    end
 
     cameraSet(camera)
         -- foreground
@@ -223,7 +276,12 @@ function GameMode:Draw()
 
         -- fishes
         for i = 1, #objects.fishes do
-            drawSprite(fishSprite, 1, objects.fishes[i].body:getX(), objects.fishes[i].body:getY(), objects.fishes[i].body:getAngle(), -objects.fishes[i].orientation, 1, 6, 4)
+            local fish = objects.fishes[i]
+            if fish.type == "fish" then
+                drawSprite(fishSprite, 1, fish.body:getX(), fish.body:getY(), fish.body:getAngle(), -fish.orientation, 1, 6, 4)
+            else
+                drawAnimation(jellyFishAnimation, fish.body:getX(), fish.body:getY(), 0, -fish.orientation, 1, 3, 5)
+            end
         end
 
         -- crate lines
@@ -247,6 +305,13 @@ function GameMode:Draw()
         -- particles
         love.graphics.draw(psystem, 0, 0)
     cameraUnset(camera)
+
+    -- foreground
+    for i = 1, #foregroundBubz do
+        love.graphics.translate(-camera.x * foregroundParallaxScale, -camera.y * foregroundParallaxScale)
+            drawSprite(backgroundBubzSprites[foregroundBubz[i].size], 1, foregroundBubz[i].px, foregroundBubz[i].py, 0, 1, 1)
+        love.graphics.translate(camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale)
+    end
 
     --love.graphics.setColor(0.76, 0.18, 0.05) --set the drawing color to red for the ball
     --love.graphics.circle("fill", player.body:getX(), player.body:getY(), player.shape:getRadius())
@@ -273,7 +338,7 @@ end
 
 function beginContact(a, b, coll)
     x,y = coll:getNormal()
-    print(a:getUserData().name.." colliding with "..b:getUserData().name.." with a vector normal of: "..x..", "..y)
+    -- print(a:getUserData().name.." colliding with "..b:getUserData().name.." with a vector normal of: "..x..", "..y)
 
     if a:getUserData().name == "player" or b:getUserData().name == "player" then
         if a:getUserData().name == "crate" then
