@@ -32,7 +32,6 @@ function GameMode:Init()
         pitch = 0,
         orientation = 1,
         animation = newAnimation(love.graphics.newImage("assets/Sub-sheet.png"), 18, 16, 0.5),
-        sprite = newSpriteSheet(love.graphics.newImage("assets/Submarine-smol-2.png"), 18, 16),
         joints = {},
         crates = {},
     }
@@ -41,8 +40,10 @@ function GameMode:Init()
     world = love.physics.newWorld(0, 9.81 * 0.25, true)
     world:setCallbacks(beginContact, endContact, preSolve, postSolve)
 
+    baseSpriteSheet = newSpriteSheet(love.graphics.newImage("assets/base-sheet.png"), 128, 64)
+
     --let's create a ball
-    player.body = love.physics.newBody(world, worldWidth/2, worldHeight/2, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
+    player.body = love.physics.newBody(world, 100, 32, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
     player.body:setFixedRotation(true)
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
     player.fixture = love.physics.newFixture(player.body, player.shape, 10) -- Attach fixture to body and give it a density of 1.
@@ -50,6 +51,45 @@ function GameMode:Init()
     player.fixture:setUserData({
         name = "player"
     })
+
+    objects.base = {}
+    objects.base.ceil = {}
+    objects.base.ceil.body = love.physics.newBody(world, 128 / 2, 1.5) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.base.ceil.shape = love.physics.newRectangleShape(128, 3)
+    objects.base.ceil.fixture = love.physics.newFixture(objects.base.ceil.body, objects.base.ceil.shape) --attach shape to body
+    objects.base.ceil.fixture:setUserData({
+        name = "baseCeil"
+    })
+    objects.base.lWall = {}
+    objects.base.lWall.body = love.physics.newBody(world, 1.5, 32) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.base.lWall.shape = love.physics.newRectangleShape(3, 64)
+    objects.base.lWall.fixture = love.physics.newFixture(objects.base.lWall.body, objects.base.lWall.shape) --attach shape to body
+    objects.base.lWall.fixture:setUserData({
+        name = "baseLeftWall"
+    })
+    objects.base.rWall = {}
+    -- refactor to variables for clarity
+    objects.base.rWall.body = love.physics.newBody(world, 128 - 1.5, 16) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.base.rWall.shape = love.physics.newRectangleShape(3, 32)
+    objects.base.rWall.fixture = love.physics.newFixture(objects.base.rWall.body, objects.base.rWall.shape) --attach shape to body
+    objects.base.rWall.fixture:setUserData({
+        name = "baseRightWall"
+    })
+    objects.base.mid = {}
+    objects.base.mid.body = love.physics.newBody(world, 3 + 68 / 2, 32) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.base.mid.shape = love.physics.newRectangleShape(68, 2)
+    objects.base.mid.fixture = love.physics.newFixture(objects.base.mid.body, objects.base.mid.shape) --attach shape to body
+    objects.base.mid.fixture:setUserData({
+        name = "baseMid"
+    })
+    objects.base.ground = {}
+    objects.base.ground.body = love.physics.newBody(world, 128 / 2, 64 - 1.5) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.base.ground.shape = love.physics.newRectangleShape(128, 3)
+    objects.base.ground.fixture = love.physics.newFixture(objects.base.ground.body, objects.base.ground.shape) --attach shape to body
+    objects.base.ground.fixture:setUserData({
+        name = "baseGround"
+    })
+
 
     --let's create the ground
     objects.ground = {}
@@ -60,14 +100,6 @@ function GameMode:Init()
         name = "ground"
     })
 
-    objects.ceil = {}
-    objects.ceil.body = love.physics.newBody(world, worldWidth/2, 40) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    objects.ceil.shape = love.physics.newRectangleShape(worldWidth, 10)
-    objects.ceil.fixture = love.physics.newFixture(objects.ceil.body, objects.ceil.shape) --attach shape to body
-    objects.ceil.fixture:setUserData({
-        name = "ceil"
-    })
-    
     --let's create a couple blocks to play around with
     crateSprite = newSpriteSheet(love.graphics.newImage("assets/Crate-2.png"), 12, 12)
     objects.crates = {}
@@ -145,6 +177,24 @@ function GameMode:HandleKeyReleased(key, scancode, isrepeat)
 end
 
 function GameMode:HandleKeyPressed(key, scancode, isrepeat)
+    if key == "k" then
+        if #player.joints > 0 and #player.crates > 0 then
+            local jointToPop = table.remove(player.joints, 1)
+            local crateToPop = table.remove(player.crates, 1)
+            jointToPop:destroy()
+
+            local fixtureToPop = objects.crates[crateToPop.index].fixture
+            local userData = fixtureToPop:getUserData()
+            userData.isAttached = false
+            fixtureToPop:setUserData(userData)
+
+            if #player.joints > 0 and #player.crates > 0 then
+                local playerCrate = objects.crates[player.crates[1].index]
+                player.joints[1]:destroy()
+                player.joints[1] = love.physics.newRopeJoint(player.body, playerCrate.body, player.body:getX(), player.body:getY(), playerCrate.body:getX(), playerCrate.body:getY(), 20, false)
+            end
+        end
+    end
 end
 
 function GameMode:HandleMousePressed(x, y, button, istouch, presses)
@@ -221,6 +271,11 @@ function GameMode:Update(dt)
         player.pitch = math.max(-1, player.pitch - player.angularThrust)
     end
 
+    if love.mouse.isDown(1) then
+        mouse_x, mouse_y = cameraGetMousePosition(camera)
+        print(mouse_x, mouse_y)
+    end
+
     if love.keyboard.isDown('j') then
         player.body:applyForce(player.forwardThrust * player.orientation * math.cos(player.pitch), -player.forwardThrust * math.sin(player.pitch))
         local angle = getAngle(player.orientation, player.pitch)
@@ -229,8 +284,6 @@ function GameMode:Update(dt)
         psystem:setSpread(3)
         psystem:setDirection(angle)
         psystem:emit(2)
-    end
-    if love.keyboard.isDown('k') then
     end
 
     if player.pitch > 0 then
@@ -266,9 +319,10 @@ function GameMode:Draw()
         -- foreground
         love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
         love.graphics.polygon("fill", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
-        love.graphics.polygon("fill", objects.ceil.body:getWorldPoints(objects.ceil.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
 
         love.graphics.setColor(1,1,1)
+
+        drawSprite(baseSpriteSheet, 1, 64, 32, 0, 1, 1, 64, 32)
         -- crates
         for i = 1, #objects.crates do
             drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].body:getAngle(), 1, 1, 6, 6)
@@ -300,10 +354,11 @@ function GameMode:Draw()
         -- player
         love.graphics.setColor(1,1,1)
         drawAnimation(player.animation, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
-        --drawSprite(player.sprite, 1, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
 
         -- particles
         love.graphics.draw(psystem, 0, 0)
+
+        drawSprite(baseSpriteSheet, 2, 64, 32, 0, 1, 1, 64, 32)
     cameraUnset(camera)
 
     -- foreground

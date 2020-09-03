@@ -30,7 +30,7 @@ function love.load()
     love.window.setMode(resWidth * resScale, resHeight * resScale)
     love.graphics.setDefaultFilter("nearest", "nearest")
 
-    backgroundMusic = love.audio.newSource("assets/the-abyss.wav", "stream")
+    backgroundMusic = love.audio.newSource("assets/the-abyss-2.wav", "stream")
     backgroundMusic:setLooping(true)
     backgroundMusic:setVolume(0.6)
 
