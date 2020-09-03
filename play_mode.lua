@@ -16,6 +16,7 @@ local world = nil
 local psystem = nil
 
 local fishMoveTimer = 1
+local disableCollisionTimer = 3
 
 persisting = 0
 
@@ -115,6 +116,8 @@ function GameMode:Init()
             index = i,
             isAttached = false
         })
+        objects.crates[i].fixture:setMask(16)
+        objects.crates[i].fixture:setCategory(2)
     end
 
     fishSprite = newSpriteSheet(love.graphics.newImage("assets/fish-1.png"), 12, 8)
@@ -148,22 +151,26 @@ function GameMode:Init()
         newSpriteSheet(love.graphics.newImage("assets/back-bubz-fat.png"), 16, 16)
     }
     backgroundBubz = {}
-    for i = 1, 800 do
+    for i = 1, 4000 do
         local bub = {}
         -- consider adding physics
         bub.size = math.random(1, 3)
-        bub.px = math.random(1, worldWidth * parallaxScale * bub.size * 5)
-        bub.py = math.random(1, worldHeight  * parallaxScale * bub.size * 5)
+        local w = worldWidth * parallaxScale * bub.size * 10
+        local h = worldHeight * parallaxScale * bub.size * 10
+        bub.px = - w/2 + math.random(1, w)
+        bub.py = - h/2 + math.random(1, h)
         table.insert(backgroundBubz, bub)
     end
 
     foregroundBubz = {}
-    for i = 1, 800 do
+    for i = 1, 4000 do
         local bub = {}
         -- consider adding physics
         bub.size = 4
-        bub.px = math.random(1, worldWidth * foregroundParallaxScale * 5)
-        bub.py = math.random(1, worldHeight * foregroundParallaxScale * 5)
+        local w = worldWidth * foregroundParallaxScale * 10
+        local h = worldHeight * foregroundParallaxScale * 10
+        bub.px = - w/2 + math.random(1, w)
+        bub.py = - h/2 + math.random(1, h)
         table.insert(foregroundBubz, bub)
     end
 
@@ -179,14 +186,21 @@ end
 function GameMode:HandleKeyPressed(key, scancode, isrepeat)
     if key == "k" then
         if #player.joints > 0 and #player.crates > 0 then
+            -- release activated, disable collision
+            disableCollisionTimer = 0
             local jointToPop = table.remove(player.joints, 1)
             local crateToPop = table.remove(player.crates, 1)
             jointToPop:destroy()
 
-            local fixtureToPop = objects.crates[crateToPop.index].fixture
-            local userData = fixtureToPop:getUserData()
+            local crateData = objects.crates[crateToPop.index]
+            local userData = crateData.fixture:getUserData()
             userData.isAttached = false
-            fixtureToPop:setUserData(userData)
+            crateData.fixture:setUserData(userData)
+
+            local xImpulse = -15000 * math.cos(getAngle(player.orientation, player.pitch))
+            local yImpulse = -15000 * math.sin(getAngle(player.orientation, player.pitch))
+            print(xImpulse, yImpulse)
+            crateData.body:applyLinearImpulse(xImpulse, yImpulse)
 
             if #player.joints > 0 and #player.crates > 0 then
                 local playerCrate = objects.crates[player.crates[1].index]
@@ -238,21 +252,28 @@ function GameMode:Update(dt)
     if fishMoveTimer > 0.5 then
         fishMoveTimer = 0
         for i = 1, #objects.fishes do
-            local xForce = -50000 + 10000 * math.random(1, 10)
-            local yForce = -1000 * math.random(1, 10)
-            objects.fishes[i].body:applyForce(xForce, yForce)
-            objects.fishes[i].orientation = xForce < 0 and -1 or 1
+            local xImpulse = -500 + 100 * math.random(1, 10)
+            local yImpulse = -10 * math.random(5, 20)
+            objects.fishes[i].body:applyLinearImpulse(xImpulse, yImpulse)
+            objects.fishes[i].orientation = xImpulse < 0 and -1 or 1
         end
     end
     fishMoveTimer = fishMoveTimer + dt
 
-    for i = 1, #backgroundBubz do
-        backgroundBubz[i].py = backgroundBubz[i].py - 0.05
+    if disableCollisionTimer < 2 then
+        player.fixture:setCategory(16)
+    else
+        player.fixture:setCategory(1)
     end
+    disableCollisionTimer = disableCollisionTimer + dt
 
-    for i = 1, #foregroundBubz do
-        foregroundBubz[i].py = foregroundBubz[i].py - 0.05
-    end
+    -- for i = 1, #backgroundBubz do
+    --     backgroundBubz[i].py = backgroundBubz[i].py - 0.05
+    -- end
+
+    -- for i = 1, #foregroundBubz do
+    --     foregroundBubz[i].py = foregroundBubz[i].py - 0.05
+    -- end
 
     cameraSetTargetCenter(camera, player.body:getX(), player.body:getY())
     cameraSetPositionCenter(camera, player.body:getX(), player.body:getY())
@@ -323,6 +344,21 @@ function GameMode:Draw()
         love.graphics.setColor(1,1,1)
 
         drawSprite(baseSpriteSheet, 1, 64, 32, 0, 1, 1, 64, 32)
+
+        -- crate lines
+        for i = 1, #player.crates do
+            local playerCrateData = player.crates[i]
+            local playerCrate = objects.crates[playerCrateData.index]
+            love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
+            if i == 1 then
+                love.graphics.line(player.body:getX(), player.body:getY(), playerCrate.body:getX(), playerCrate.body:getY())
+            else
+                local prevCrate = objects.crates[player.crates[i - 1].index]
+                love.graphics.line(playerCrate.body:getX(), playerCrate.body:getY(), prevCrate.body:getX(), prevCrate.body:getY())
+            end
+        end
+        love.graphics.setColor(1,1,1)
+
         -- crates
         for i = 1, #objects.crates do
             drawSprite(crateSprite, 1, objects.crates[i].body:getX(), objects.crates[i].body:getY(), objects.crates[i].body:getAngle(), 1, 1, 6, 6)
@@ -338,21 +374,7 @@ function GameMode:Draw()
             end
         end
 
-        -- crate lines
-        for i = 1, #player.crates do
-            local playerCrateData = player.crates[i]
-            local playerCrate = objects.crates[playerCrateData.index]
-            love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
-            if i == 1 then
-                love.graphics.line(player.body:getX(), player.body:getY(), playerCrate.body:getX(), playerCrate.body:getY())
-            else
-                local prevCrate = objects.crates[player.crates[i - 1].index]
-                love.graphics.line(playerCrate.body:getX(), playerCrate.body:getY(), prevCrate.body:getX(), prevCrate.body:getY())
-            end
-        end
-
         -- player
-        love.graphics.setColor(1,1,1)
         drawAnimation(player.animation, player.body:getX(), player.body:getY(), player.pitch * -player.orientation, -player.orientation, 1, 9, 8)
 
         -- particles
