@@ -11,7 +11,7 @@ currentMode = nil
 
 resWidth = 160
 resHeight= 144
-resScale = 3
+resScale = 5
 
 defaultFont12Pt = love.graphics.newFont(12)
 defaultFont14Pt = love.graphics.newFont(14)
