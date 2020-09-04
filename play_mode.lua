@@ -225,13 +225,32 @@ function GameMode:HandleKeyPressed(key, scancode, isrepeat)
 end
 
 function GameMode:HandleMousePressed(x, y, button, istouch, presses)
+    mouse_x, mouse_y = cameraGetMousePosition(camera)
+    print(mouse_x, mouse_y)
 end
 
 function GameMode:HandleMouseReleased(x, y, button, istouch, presses)
 end
 
 function GameMode:HandleMouseWheel(x, y)
+    -- Zoom towards the mouse cursor
+    local worldMouseX, worldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
+    -- Zoom towards center
+    -- local old_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
+    -- local old_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
+    camera.scaleX = clamp(camera.scaleX - y * 0.1, 0.2, 5)
+    camera.scaleY = clamp(camera.scaleY - y * 0.1, 0.2, 5)
+    local newWorldMouseX, newWorldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
+    -- local new_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
+    -- local new_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
+    -- local dx = new_cx - old_cx
+    -- local dy = new_cy - old_cy
+    local dx = newWorldMouseX - worldMouseX
+    local dy = newWorldMouseY - worldMouseY
+    camera.x = camera.x - dx
+    camera.y = camera.y - dy
 end
+
 
 function GameMode:Update(dt)
     world:update(dt) --this puts the world into motion
@@ -305,11 +324,6 @@ function GameMode:Update(dt)
         player.pitch = math.max(-1, player.pitch - player.angularThrust)
     end
 
-    if love.mouse.isDown(1) then
-        mouse_x, mouse_y = cameraGetMousePosition(camera)
-        print(mouse_x, mouse_y)
-    end
-
     if love.keyboard.isDown('j') then
         player.body:applyForce(player.forwardThrust * player.orientation * math.cos(player.pitch), -player.forwardThrust * math.sin(player.pitch))
         local angle = getAngle(player.orientation, player.pitch)
@@ -328,8 +342,10 @@ function GameMode:Update(dt)
 end
 
 function GameMode:Draw()
+    -- first scale graphics to current expected scale (resScale)
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
         -- background
+        -- translate camera position by parallax
         love.graphics.translate(-camera.x * parallaxScale, -camera.y * parallaxScale)
             love.graphics.setColor(1,1,1)
 
@@ -347,6 +363,7 @@ function GameMode:Draw()
                 drawSprite(backgroundBubzSprites[backgroundBubz[i].size], 1, backgroundBubz[i].px, backgroundBubz[i].py, 0, 1, 1)
             love.graphics.translate(camera.x * parallaxScale * backgroundBubz[i].size, camera.y * parallaxScale * backgroundBubz[i].size)
         end
+    -- pop for cameraSet to rescale back
     love.graphics.scale(camera.scaleX, camera.scaleY)
     cameraSet(camera)
         -- foreground
@@ -398,6 +415,7 @@ function GameMode:Draw()
         -- love.graphics.circle("fill", 0, 0, 20)
     cameraUnset(camera)
 
+     -- scale graphics to current expected scale (resScale)
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
         -- foreground
         love.graphics.setColor(1,1,1)
