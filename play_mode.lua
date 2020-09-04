@@ -9,12 +9,16 @@ local worldHeight = resHeight * 3
 local parallaxScale = 0.2
 local foregroundParallaxScale = 3
 
+local baseW, baseH = 128,64
+local baseX, baseY = 0 + baseW / 2, 0 + baseH / 2
+
 local crateColBuffer = {}
 local player = {}
 local objects = {}
 local world = nil
 local psystem = nil
 local jointLength = 15
+local arrowRadius = 20
 
 local fishMoveTimer = 1
 local disableCollisionTimer = 3
@@ -26,8 +30,9 @@ local function getAngle(orientation, pitch)
     return -orientation * pitch + (orientation > 0 and math.pi or 0)
 end
 
-local function buildBase(x, y)
-    local w, h = 128,64
+local function buildBase()
+    local x, y = baseX - baseW/2, baseY - baseH/2
+    local w, h = baseW, baseH
     local beamThickness = 3
     local doorHeight = 32
     local shelfLength = 68
@@ -408,9 +413,21 @@ function GameMode:Draw()
 
         -- particles
         love.graphics.draw(psystem, 0, 0)
-
         drawSprite(baseSpriteSheet, 2, 64, 32, 0, 1, 1, 64, 32)
 
+        -- UI
+        local angleToBase = math.atan2(baseY - player.body:getY(), baseX - player.body:getX())
+        drawSprite(arrowFilledSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToBase), player.body:getY() + arrowRadius * math.sin(angleToBase), angleToBase + math.pi / 2, 1, 1, 3.5, 2)
+
+        -- crates
+        for i = 1, #objects.crates do
+            local crate = objects.crates[i]
+            local userData = crate.fixture:getUserData()
+            if not userData.isAttached then
+                local angleToCrate = math.atan2(crate.body:getY() - player.body:getY(), crate.body:getX() - player.body:getX())
+                drawSprite(arrowOpenSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToCrate), player.body:getY() + arrowRadius * math.sin(angleToCrate), angleToCrate + math.pi / 2, 1, 1, 3.5, 2)
+            end
+        end
         -- love.graphics.setColor(1,0,0)
         -- love.graphics.circle("fill", 0, 0, 20)
     cameraUnset(camera)
