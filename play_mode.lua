@@ -9,6 +9,9 @@ local worldHeight = resHeight * 3
 local parallaxScale = 0.2
 local foregroundParallaxScale = 3
 
+local initialScale = 0.5
+local startupZoomTimer = 0
+
 local baseW, baseH = 128,64
 local baseX, baseY = 0 + baseW / 2, 0 + baseH / 2
 
@@ -79,7 +82,8 @@ local function buildBase()
 end
 
 function GameMode:Init()
-    camera = cameraInit(0, 0, 1/resScale, 1/resScale, 0)
+    isStartupFinished = false
+    camera = cameraInit(0, 0, 1/initialScale, 1/initialScale, 0)
     player = {
         forwardThrust = 60000,
         angularThrust = 0.03,
@@ -243,8 +247,8 @@ function GameMode:HandleMouseWheel(x, y)
     -- Zoom towards center
     -- local old_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
     -- local old_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
-    camera.scaleX = clamp(camera.scaleX - y * 0.1, 0.2, 5)
-    camera.scaleY = clamp(camera.scaleY - y * 0.1, 0.2, 5)
+    camera.scaleX = clamp(camera.scaleX - y * 0.01, 0.2, 5)
+    camera.scaleY = clamp(camera.scaleY - y * 0.01, 0.2, 5)
     local newWorldMouseX, newWorldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
     -- local new_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
     -- local new_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
@@ -262,6 +266,20 @@ function GameMode:Update(dt)
     psystem:update(dt)
     updateAnimation(player.animation, dt)
     updateAnimation(jellyFishAnimation, dt)
+
+    if not isStartupFinished then
+        startupZoomTimer = startupZoomTimer + dt
+        if startupZoomTimer > 0.01 then
+            startupZoomTimer = 0
+            camera.scaleX = camera.scaleX * 0.992
+            camera.scaleY = camera.scaleY * 0.992
+            if camera.scaleX <= 1/resScale then
+                camera.scaleX = 1 / resScale
+                camera.scaleY = 1 / resScale
+                isStartupFinished = true
+            end
+        end
+    end
 
     -- handle physics collision buffer
     for i = 1, #crateColBuffer do
