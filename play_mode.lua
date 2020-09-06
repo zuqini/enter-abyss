@@ -27,7 +27,8 @@ local doorThickness = 6
 local combinedDoorWidth = doorLength * 2
 local shelfThickness, shelfLength = 4, 52
 
-local crateColBuffer = {}
+local crateColLinkBuffer = {}
+local crateColUnlinkBuffer = {}
 local player = {}
 local objects = {}
 local world = nil
@@ -213,6 +214,7 @@ function GameMode:Init()
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
     player.fixture = love.physics.newFixture(player.body, player.shape, 5) -- Attach fixture to body and give it a density of 1.
     player.fixture:setRestitution(0.2)
+    player.fixture:setMask(3)
     player.fixture:setUserData({
         name = "player"
     })
@@ -233,9 +235,13 @@ function GameMode:Init()
     fishSprite = newSpriteSheet(love.graphics.newImage("assets/fish-1.png"), 12, 8)
     jellyFishAnimation = newAnimation(love.graphics.newImage("assets/Jelly-sheet.png"), 7, 10, 0.5)
     objects.fishes = {}
-    for i = 1, 64 do
+    for i = 1, 128 do
         local scaledWidth, scaledHeight = resWidth * resScale, resHeight * resScale
-        local x, y = player.body:getX() - scaledWidth / 2 + math.random(1, scaledWidth), player.body:getY() - scaledHeight / 2 + math.random(1, scaledHeight)
+        -- hack for time to not generate inside base
+        local x, y = baseX, baseY
+        while x >= baseX - baseW/2 and x <= baseX + baseW/2 and y >= baseY - baseH/2 and y <= baseY + baseH/2 do
+            x, y = player.body:getX() - scaledWidth / 2 + math.random(1, scaledWidth), player.body:getY() - scaledHeight / 2 + math.random(1, scaledHeight)
+        end
         objects.fishes[i] = createFish(x, y)
     end
 
@@ -308,6 +314,8 @@ function GameMode:HandleKeyPressed(key, scancode, isrepeat)
             local userData = crateData.fixture:getUserData()
             userData.isAttached = false
             crateData.fixture:setUserData(userData)
+            crateData.fixture:setCategory(2)
+
 
             local xImpulse = -15000 * math.cos(getAngle(player.orientation, player.pitch))
             local yImpulse = -15000 * math.sin(getAngle(player.orientation, player.pitch))
@@ -393,17 +401,16 @@ function GameMode:Update(dt)
         end
     end
 
-    -- handle physics collision buffer
-    for i = 1, #crateColBuffer do
-        -- print("handling collision buffer")
-        local crateCol = crateColBuffer[i]
+    for i = 1, #crateColLinkBuffer do
+        local crateCol = crateColLinkBuffer[i]
         local crate = objects.crates[crateCol.index]
-        crateColBuffer[i] = nil
+        crateColLinkBuffer[i] = nil
 
         local userData = crate.fixture:getUserData()
         if not userData.isAttached then
             userData.isAttached = true
             crate.fixture:setUserData(userData)
+            crate.fixture:setCategory(3)
 
             if #player.crates == 0 then
                 table.insert(player.joints, love.physics.newRopeJoint(player.body, crate.body, player.body:getX(), player.body:getY(), crate.body:getX(), crate.body:getY(), jointLength, false))
@@ -413,6 +420,26 @@ function GameMode:Update(dt)
                 table.insert(player.joints, love.physics.newRopeJoint(playerCrate.body, crate.body, playerCrate.body:getX(), playerCrate.body:getY(), crate.body:getX(), crate.body:getY(), jointLength, false))
             end
             table.insert(player.crates, crateCol)
+        end
+    end
+
+    for i = 1, #crateColUnlinkBuffer do
+        for j = 1, #player.crates do
+            crateColUnlinkBuffer[i] = nil
+            local jointToPop = table.remove(player.joints, 1)
+            local crateToPop = table.remove(player.crates, 1)
+            jointToPop:destroy()
+
+            local crateData = objects.crates[crateToPop.index]
+            local userData = crateData.fixture:getUserData()
+            userData.isAttached = false
+            crateData.fixture:setUserData(userData)
+            crateData.fixture:setCategory(2)
+
+            local randomAngle = math.rad(math.random(1,360))
+            local xImpulse = 5000 * math.cos(randomAngle)
+            local yImpulse = 5000 * math.sin(randomAngle)
+            crateData.body:applyLinearImpulse(xImpulse, yImpulse)
         end
     end
 
@@ -601,7 +628,7 @@ function GameMode:SetExternalState(globalState, sharedState)
     end
 end
 
--- physics callbacks``
+-- physics callbacks
 
 function beginContact(a, b, coll)
     x,y = coll:getNormal()
@@ -609,9 +636,17 @@ function beginContact(a, b, coll)
 
     if a:getUserData().name == "player" or b:getUserData().name == "player" then
         if a:getUserData().name == "crate" then
-            table.insert(crateColBuffer, a:getUserData())
+            table.insert(crateColLinkBuffer, a:getUserData())
         elseif b:getUserData().name == "crate" then
-            table.insert(crateColBuffer, b:getUserData())
+            table.insert(crateColLinkBuffer, b:getUserData())
+        end
+    end
+
+    if a:getUserData().name == "fish" or b:getUserData().name == "fish" then
+        if a:getUserData().name == "crate" and a:getUserData().isAttached then
+            table.insert(crateColUnlinkBuffer, a:getUserData())
+        elseif b:getUserData().name == "crate" and b:getUserData().isAttached then
+            table.insert(crateColUnlinkBuffer, b:getUserData())
         end
     end
 
