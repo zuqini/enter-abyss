@@ -4,16 +4,28 @@ require 'slidable_utils'
 local GameMode = {}
 GameMode.modeName = "Play Mode"
 
-local worldWidth = resWidth * 3
-local worldHeight = resHeight * 3
+local worldWidth = resWidth * 20
+local worldHeight = resHeight * 5
 local parallaxScale = 0.2
-local foregroundParallaxScale = 3
+local parallaxWorldSizeMultiplier = 1
+local foregroundParallaxScale = 1
+local parallaxWorldSizeMultiplierForeground = 1
 
-local initialScale = 0.5
+local initialScale = 0.2 * resScale
 local startupZoomTimer = 0
 
-local baseW, baseH = 128,64
-local baseX, baseY = 0 + baseW / 2, 0 + baseH / 2
+local crateWidth, crateHeight = 12, 12
+local baseSpriteW, baseSpriteH = 151,74
+local baseW, baseH = 150,73
+local baseX, baseY = 0 + baseSpriteW / 2, 0 + baseSpriteH / 2
+local destinationX, destinationY = 0, 0
+
+local w, h = baseW, baseH
+local beamThickness, beamWidth = 5, 57
+local doorLength = 18
+local doorThickness = 6
+local combinedDoorWidth = doorLength * 2
+local shelfThickness, shelfLength = 4, 52
 
 local crateColBuffer = {}
 local player = {}
@@ -22,63 +34,155 @@ local world = nil
 local psystem = nil
 local jointLength = 15
 local arrowRadius = 20
+local fishRange = resWidth * 2
 
 local fishMoveTimer = 1
 local disableCollisionTimer = 3
 
 persisting = 0
 
--- utils
+-- utils -------------------------------------------------------------
 local function getAngle(orientation, pitch)
     return -orientation * pitch + (orientation > 0 and math.pi or 0)
 end
 
-local function buildBase()
-    local x, y = baseX - baseW/2, baseY - baseH/2
-    local w, h = baseW, baseH
-    local beamThickness = 3
-    local doorHeight = 32
-    local shelfLength = 68
-    local shelfThickness = 2
+local function buildBase(centerX, centerY, generateCrates)
+    local x, y = centerX - baseSpriteW/2, centerY - baseSpriteH/2
 
     base = {}
+    base.doors = {}
     base.ceil = {}
-    base.ceil.body = love.physics.newBody(world, x + w / 2, y + beamThickness / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    base.ceil.shape = love.physics.newRectangleShape(w, beamThickness)
-    base.ceil.fixture = love.physics.newFixture(base.ceil.body, base.ceil.shape) --attach shape to body
-    base.ceil.fixture:setUserData({
-        name = "baseCeil"
-    })
-    base.lWall = {}
-    base.lWall.body = love.physics.newBody(world, x + beamThickness / 2, y + h / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    base.lWall.shape = love.physics.newRectangleShape(beamThickness, h)
-    base.lWall.fixture = love.physics.newFixture(base.lWall.body, base.lWall.shape) --attach shape to body
-    base.lWall.fixture:setUserData({
-        name = "baseLeftWall"
-    })
-    base.rWall = {}
-    -- refactor to variables for clarity
-    base.rWall.body = love.physics.newBody(world, x + w - beamThickness / 2, y + doorHeight / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    base.rWall.shape = love.physics.newRectangleShape(beamThickness, doorHeight)
-    base.rWall.fixture = love.physics.newFixture(base.rWall.body, base.rWall.shape) --attach shape to body
-    base.rWall.fixture:setUserData({
-        name = "baseRightWall"
-    })
-    base.mid = {}
-    base.mid.body = love.physics.newBody(world, x + beamThickness + shelfLength / 2, y + h / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    base.mid.shape = love.physics.newRectangleShape(shelfLength, shelfThickness)
-    base.mid.fixture = love.physics.newFixture(base.mid.body, base.mid.shape) --attach shape to body
-    base.mid.fixture:setUserData({
-        name = "baseMid"
-    })
     base.ground = {}
-    base.ground.body = love.physics.newBody(world, x + w / 2, y + h - beamThickness / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    base.ground.shape = love.physics.newRectangleShape(w, beamThickness)
-    base.ground.fixture = love.physics.newFixture(base.ground.body, base.ground.shape) --attach shape to body
-    base.ground.fixture:setUserData({
-        name = "baseGround"
-    })
+    base.wall = {}
+    base.mid = {}
+
+    for i = 0, 1 do
+        base.ceil[i] = {}
+        base.ceil[i].body = love.physics.newBody(world, x + i * (beamWidth + combinedDoorWidth) + beamWidth / 2, y + beamThickness / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+        base.ceil[i].shape = love.physics.newRectangleShape(beamWidth, beamThickness)
+        base.ceil[i].fixture = love.physics.newFixture(base.ceil[i].body, base.ceil[i].shape) --attach shape to body
+        base.ceil[i].fixture:setUserData({
+            name = "baseCeil",
+            index = i
+        })
+
+        base.ground[i] = {}
+        base.ground[i].body = love.physics.newBody(world, x + i * (beamWidth + combinedDoorWidth) + beamWidth / 2, y + h - beamThickness / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+        base.ground[i].shape = love.physics.newRectangleShape(beamWidth, beamThickness)
+        base.ground[i].fixture = love.physics.newFixture(base.ground[i].body, base.ground[i].shape) --attach shape to body
+        base.ground[i].fixture:setUserData({
+            name = "baseGround",
+            index = i
+        })
+
+        base.wall[i] = {}
+        base.wall[i].body = love.physics.newBody(world, x + i * (w - beamThickness) + beamThickness / 2, y + h / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+        base.wall[i].shape = love.physics.newRectangleShape(beamThickness, h)
+        base.wall[i].fixture = love.physics.newFixture(base.wall[i].body, base.wall[i].shape) --attach shape to body
+        base.wall[i].fixture:setUserData({
+            name = "baseWall",
+            index = i
+        })
+
+        base.mid[i] = {}
+        base.mid[i].body = love.physics.newBody(world, x + beamThickness + i * (beamWidth + combinedDoorWidth - beamThickness) + shelfLength / 2, y + h / 2) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+        base.mid[i].shape = love.physics.newRectangleShape(shelfLength, shelfThickness)
+        base.mid[i].fixture = love.physics.newFixture(base.mid[i].body, base.mid[i].shape) --attach shape to body
+        base.mid[i].fixture:setUserData({
+            name = "baseMid",
+            index = i
+        })
+
+        local doors = {}
+        for j = 0, 1 do
+            doors[j + 1] = {}
+            doors[j + 1].spriteIndex = j + 1
+            local doorX, doorY = x + beamWidth + j * (doorLength) + doorLength / 2, y + i * (baseSpriteH - doorThickness) + doorThickness / 2
+            doors[j + 1].closedX = doorX
+            doors[j + 1].openX = x + beamWidth - doorLength / 2 + j * (doorLength * 3)
+            doors[j + 1].slidable = {
+                x = doorX,
+                y = doorY,
+                t = 0,
+                sourceX = doorX,
+                sourceY = doorY,
+                targetX = doorX,
+                targetY = doorY,
+                animationTimeMs = 250,
+            }
+            doors[j + 1].body = love.physics.newBody(world, doorX, doorY) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+            doors[j + 1].shape = love.physics.newRectangleShape(doorLength, doorThickness)
+            doors[j + 1].fixture = love.physics.newFixture(doors[j + 1].body, doors[j + 1].shape) --attach shape to body
+            doors[j + 1].fixture:setUserData({
+                name = "door",
+                isTop = i,
+                index = j
+            })
+        end
+        base.doors[i + 1] = doors
+    end
+
+    if generateCrates then
+        for i = 1, 3 do
+            objects.crates[i] = {}
+            objects.crates[i].body = love.physics.newBody(world, x + beamWidth + combinedDoorWidth + 0.2 * shelfLength + i * crateWidth, y + h / 2 - crateHeight, "dynamic")
+            objects.crates[i].shape = love.physics.newRectangleShape(0, 0, crateWidth, crateHeight)
+            objects.crates[i].fixture = love.physics.newFixture(objects.crates[i].body, objects.crates[i].shape, 1) -- A higher density gives it more mass.
+            objects.crates[i].fixture:setRestitution(0.1)
+            objects.crates[i].fixture:setUserData({
+                name = "crate",
+                index = i,
+                isAttached = false
+            })
+            objects.crates[i].fixture:setMask(16)
+            objects.crates[i].fixture:setCategory(2)
+        end
+    end
+
     return base
+end
+
+local function getRandomPointOutsidePlayerRange(minRange, maxRange)
+    local randomRadius = math.random(minRange, maxRange)
+    local randomAngleInDegrees = math.random(1, 360)
+    local randomAngle = math.rad(randomAngleInDegrees)
+    local x, y = player.body:getX() + randomRadius * math.cos(randomAngle), player.body:getY() + randomRadius * math.sin(randomAngle)
+    return x, y
+end
+
+-- this is a square range, not a circle range, but it doesn't really matter
+local function isOutOfRangeOfPlayer(x, y, range)
+    return x < player.body:getX() - range or x > player.body:getX() + range or y < player.body:getY() - range or y > player.body:getY() + range
+end
+
+local function createFish(x, y)
+    fish = {}
+    fish.orientation = -1
+    fish.body = love.physics.newBody(world, x, y, "dynamic")
+    fish.body:setFixedRotation(true)
+    if math.random(1, 2) == 1 then
+        -- refactor to enum
+        fish.type = "fish"
+        fish.shape = love.physics.newRectangleShape(0, 0, 12, 8)
+    else
+        fish.type = "jelly"
+        fish.shape = love.physics.newRectangleShape(0, 0, 7, 10)
+    end
+    fish.fixture = love.physics.newFixture(fish.body, fish.shape, 1) -- A higher density gives it more mass.
+    fish.fixture:setRestitution(0.1)
+    fish.fixture:setUserData({
+        name = "fish"
+    })
+    return fish
+end
+
+local function replaceFish()
+    for i = 1, #objects.fishes do
+        if isOutOfRangeOfPlayer(objects.fishes[i].body:getX(), objects.fishes[i].body:getY(), fishRange * 1.5) then
+            local x, y = getRandomPointOutsidePlayerRange(fishRange, fishRange * 1.2)
+            objects.fishes[i] = createFish(x, y)
+        end
+    end
 end
 
 function GameMode:Init()
@@ -101,10 +205,10 @@ function GameMode:Init()
     arrowOpenSprite = newSpriteSheet(love.graphics.newImage("assets/arrow-open.png"), 7, 4)
     arrowFilledSprite = newSpriteSheet(love.graphics.newImage("assets/arrow-fill.png"), 7, 4)
 
-    baseSpriteSheet = newSpriteSheet(love.graphics.newImage("assets/base-sheet.png"), 128, 64)
+    baseSpriteSheet = newSpriteSheet(love.graphics.newImage("assets/base-2-sheet.png"), baseSpriteW, baseSpriteH)
 
     --let's create a ball
-    player.body = love.physics.newBody(world, 100, 32, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
+    player.body = love.physics.newBody(world, 20, 20, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
     player.body:setFixedRotation(true)
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
     player.fixture = love.physics.newFixture(player.body, player.shape, 5) -- Attach fixture to body and give it a density of 1.
@@ -113,11 +217,9 @@ function GameMode:Init()
         name = "player"
     })
 
-    objects.base = buildBase(0, 0)
-
     --let's create the ground
     objects.ground = {}
-    objects.ground.body = love.physics.newBody(world, worldWidth/2, worldHeight/2 + 40) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
+    objects.ground.body = love.physics.newBody(world, worldWidth/2 * 0.2, worldHeight) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
     objects.ground.shape = love.physics.newRectangleShape(worldWidth, 10)
     objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape) --attach shape to body
     objects.ground.fixture:setUserData({
@@ -127,45 +229,26 @@ function GameMode:Init()
     --let's create a couple blocks to play around with
     crateSprite = newSpriteSheet(love.graphics.newImage("assets/Crate-2.png"), 12, 12)
     objects.crates = {}
-    
-    for i = 1, 5 do
-        objects.crates[i] = {}
-        objects.crates[i].body = love.physics.newBody(world, worldWidth/2 + 16 * i, worldHeight/2, "dynamic")
-        objects.crates[i].shape = love.physics.newRectangleShape(0, 0, 12, 12)
-        objects.crates[i].fixture = love.physics.newFixture(objects.crates[i].body, objects.crates[i].shape, 1) -- A higher density gives it more mass.
-        objects.crates[i].fixture:setRestitution(0.1)
-        objects.crates[i].fixture:setUserData({
-            name = "crate",
-            index = i,
-            isAttached = false
-        })
-        objects.crates[i].fixture:setMask(16)
-        objects.crates[i].fixture:setCategory(2)
-    end
 
     fishSprite = newSpriteSheet(love.graphics.newImage("assets/fish-1.png"), 12, 8)
     jellyFishAnimation = newAnimation(love.graphics.newImage("assets/Jelly-sheet.png"), 7, 10, 0.5)
     objects.fishes = {}
     for i = 1, 64 do
-        objects.fishes[i] = {}
-        objects.fishes[i].orientation = -1
-        objects.fishes[i].body = love.physics.newBody(world, math.random(1, worldWidth), math.random(1, worldHeight), "dynamic")
-        objects.fishes[i].body:setFixedRotation(true)
-        if math.random(1, 2) == 1 then
-            -- refactor to enum
-            objects.fishes[i].type = "fish"
-            objects.fishes[i].shape = love.physics.newRectangleShape(0, 0, 12, 8)
-        else
-            objects.fishes[i].type = "jelly"
-            objects.fishes[i].shape = love.physics.newRectangleShape(0, 0, 7, 10)
-        end
-        objects.fishes[i].fixture = love.physics.newFixture(objects.fishes[i].body, objects.fishes[i].shape, 1) -- A higher density gives it more mass.
-        objects.fishes[i].fixture:setRestitution(0.1)
-        objects.fishes[i].fixture:setUserData({
-            name = "fish"
-        })
+        local scaledWidth, scaledHeight = resWidth * resScale, resHeight * resScale
+        local x, y = player.body:getX() - scaledWidth / 2 + math.random(1, scaledWidth), player.body:getY() - scaledHeight / 2 + math.random(1, scaledHeight)
+        objects.fishes[i] = createFish(x, y)
     end
 
+    objects.base = buildBase(baseX, baseY, true)
+
+    destinationX, destinationY = math.random(worldWidth * 0.2, worldWidth), math.random(0, worldHeight)
+    objects.destination = buildBase(destinationX, destinationY)
+
+    leftDoorSprite = newSpriteSheet(love.graphics.newImage("assets/door-left.png"), 19, 6)
+    rightDoorSprite = newSpriteSheet(love.graphics.newImage("assets/door-right.png"), 18, 6)
+    background = newSpriteSheet(love.graphics.newImage("assets/currents.png"), 386, 327)
+
+    -- bubbles
     backgroundSprite = newSpriteSheet(love.graphics.newImage("assets/Background-1.png"), 32, 32)
     backgroundBubzSprites = {
         newSpriteSheet(love.graphics.newImage("assets/back-bubz-smol.png"), 2, 2),
@@ -173,29 +256,35 @@ function GameMode:Init()
         newSpriteSheet(love.graphics.newImage("assets/back-bubz-big.png"), 6, 6),
         newSpriteSheet(love.graphics.newImage("assets/back-bubz-fat.png"), 16, 16)
     }
-    backgroundBubz = {}
-    for i = 1, 4000 do
-        local bub = {}
-        -- consider adding physics
-        bub.size = math.random(1, 3)
-        local w = worldWidth * parallaxScale * bub.size * 10
-        local h = worldHeight * parallaxScale * bub.size * 10
-        bub.px = - w/2 + math.random(1, w)
-        bub.py = - h/2 + math.random(1, h)
-        table.insert(backgroundBubz, bub)
+
+    -- note draw bubbles to canvas for performance reasons because we want a lot of bubbles
+    -- note2: attempted to start out with few bubbles and dynamically generate bubbles as player moves
+    -- however, when player zooms out when there is very few bubbles, the innacurate parallax zooming becomes obvious (2d limitations with parallax implementation)
+    -- either remove zoom to dynamically generate bubbles with parallax, or keep zoom and instead just have a lot of bubbles
+    backgroundBubzCanvas = {
+        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale, parallaxWorldSizeMultiplier * worldHeight * parallaxScale),
+        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale * 2, parallaxWorldSizeMultiplier * worldHeight * parallaxScale * 2),
+        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale * 3, parallaxWorldSizeMultiplier * worldHeight * parallaxScale * 3)
+    }
+    for size = 1, #backgroundBubzCanvas do
+        love.graphics.setCanvas(backgroundBubzCanvas[size])
+        love.graphics.clear()
+        for i = 1, 500 do
+            local w = worldWidth * parallaxScale * size * parallaxWorldSizeMultiplier
+            local h = worldHeight * parallaxScale * size * parallaxWorldSizeMultiplier
+            drawSprite(backgroundBubzSprites[size], 1, math.random(1, w), math.random(1, h), 0, 1, 1)
+        end
+        love.graphics.setCanvas()
     end
 
-    foregroundBubz = {}
-    for i = 1, 4000 do
-        local bub = {}
-        -- consider adding physics
-        bub.size = 4
-        local w = worldWidth * foregroundParallaxScale * 10
-        local h = worldHeight * foregroundParallaxScale * 10
-        bub.px = - w/2 + math.random(1, w)
-        bub.py = - h/2 + math.random(1, h)
-        table.insert(foregroundBubz, bub)
+    foregroundBubzCanvas = love.graphics.newCanvas(parallaxWorldSizeMultiplierForeground * worldWidth * foregroundParallaxScale, parallaxWorldSizeMultiplierForeground * worldWidth * foregroundParallaxScale)
+    love.graphics.setCanvas(foregroundBubzCanvas)
+    for i = 1, 2000 do
+        local w = worldWidth * foregroundParallaxScale * parallaxWorldSizeMultiplierForeground
+        local h = worldHeight * foregroundParallaxScale * parallaxWorldSizeMultiplierForeground
+        drawSprite(backgroundBubzSprites[4], 1, math.random(1, w), math.random(1, h), 0, 1, 1)
     end
+    love.graphics.setCanvas()
 
     psystem = love.graphics.newParticleSystem(love.graphics.newImage("assets/bubz.png"), 512)
     psystem:setParticleLifetime(1, 2)
@@ -260,12 +349,35 @@ function GameMode:HandleMouseWheel(x, y)
     camera.y = camera.y - dy
 end
 
+local function updateDoors(structure, dt)
+    for i = 1, #structure.doors do
+        for j = 1, #structure.doors[i] do
+            local door = structure.doors[i][j]
+            local minDistance = love.physics.getDistance( player.fixture, door.fixture )
+            for k = 1, #player.crates do
+                local playerCrateData = player.crates[#player.crates]
+                local playerCrate = objects.crates[playerCrateData.index]
+                minDistance = math.min(love.physics.getDistance(playerCrate.fixture, door.fixture), minDistance)
+            end
+            if minDistance < 20 and door.slidable.targetX ~= door.openX then
+                setSlidableTarget(door.slidable, door.openX, door.body:getY())
+            elseif minDistance >= 20 and door.slidable.targetX ~= door.closedX then
+                setSlidableTarget(door.slidable, door.closedX, door.body:getY())
+            end
+            updateSlidable(door.slidable, dt, quarticEaseOut)
+            door.body:setPosition(door.slidable.x, door.slidable.y)
+        end
+    end
+end
 
 function GameMode:Update(dt)
     world:update(dt) --this puts the world into motion
     psystem:update(dt)
     updateAnimation(player.animation, dt)
     updateAnimation(jellyFishAnimation, dt)
+    updateDoors(objects.base, dt)
+    updateDoors(objects.destination, dt)
+    replaceFish()
 
     if not isStartupFinished then
         startupZoomTimer = startupZoomTimer + dt
@@ -322,14 +434,6 @@ function GameMode:Update(dt)
     end
     disableCollisionTimer = disableCollisionTimer + dt
 
-    -- for i = 1, #backgroundBubz do
-    --     backgroundBubz[i].py = backgroundBubz[i].py - 0.05
-    -- end
-
-    -- for i = 1, #foregroundBubz do
-    --     foregroundBubz[i].py = foregroundBubz[i].py - 0.05
-    -- end
-
     cameraSetTargetCenter(camera, player.body:getX(), player.body:getY())
     cameraSetPositionCenter(camera, player.body:getX(), player.body:getY())
  
@@ -364,16 +468,35 @@ function GameMode:Update(dt)
     end
 end
 
+local function drawDoors(structure)
+    for i = 1, #structure.doors do
+        for j = 1, #structure.doors[i] do
+            local door = structure.doors[i][j]
+            drawSprite(door.spriteIndex == 1 and leftDoorSprite or rightDoorSprite, 1, door.body:getX(), door.body:getY(), 0, 1, 1, doorLength / 2, doorThickness / 2)
+        end
+    end
+end
+
 function GameMode:Draw()
     -- first scale graphics to current expected scale (resScale)
     -- btw, this is an incorrect approximation of parallax zooming in 2D, need more investigation
     -- for real parallax zooming, we need to simulate camera becoming closer to the scene rather than simply scaling/magnifying
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
-        --bubbles
-        for i = 1, #backgroundBubz do
-            local translateX, translateY = camera.x * parallaxScale * backgroundBubz[i].size, camera.y * parallaxScale * backgroundBubz[i].size
+        -- background
+        -- local translateX, translateY = camera.x * 0.05, camera.y * 0.05
+        -- love.graphics.translate(-translateX, -translateY)
+        --     drawSprite(background, 1, 0, 0, 0, 1, 1, 0, 0)
+        -- love.graphics.translate(translateX, translateY)
+
+        -- bubbles
+        for size = 1, #backgroundBubzCanvas do
+            local translateX, translateY = camera.x * parallaxScale * size, camera.y * parallaxScale * size
             love.graphics.translate(-translateX, -translateY)
-                drawSprite(backgroundBubzSprites[backgroundBubz[i].size], 1, backgroundBubz[i].px, backgroundBubz[i].py, 0, 1, 1)
+            for i = -10, 100 do
+                for j = -10, 100 do
+                    love.graphics.draw(backgroundBubzCanvas[size], i * backgroundBubzCanvas[size]:getWidth(), j * backgroundBubzCanvas[size]:getHeight())
+                end
+            end
             love.graphics.translate(translateX, translateY)
         end
     -- pop for cameraSet to rescale back
@@ -385,7 +508,10 @@ function GameMode:Draw()
 
         love.graphics.setColor(1,1,1)
 
-        drawSprite(baseSpriteSheet, 1, 64, 32, 0, 1, 1, 64, 32)
+        drawDoors(objects.base)
+        drawDoors(objects.destination)
+        drawSprite(baseSpriteSheet, 1, baseX, baseY, 0, 1, 1, baseSpriteW / 2, baseSpriteH / 2)
+        drawSprite(baseSpriteSheet, 1, destinationX, destinationY, 0, 1, 1, baseSpriteW / 2, baseSpriteH / 2)
 
         -- crate lines
         for i = 1, #player.crates do
@@ -421,13 +547,16 @@ function GameMode:Draw()
 
         -- particles
         love.graphics.draw(psystem, 0, 0)
-        drawSprite(baseSpriteSheet, 2, 64, 32, 0, 1, 1, 64, 32)
+
+        -- base glass
+        drawSprite(baseSpriteSheet, 2, baseX, baseY, 0, 1, 1, baseSpriteW / 2, baseSpriteH / 2)
+        drawSprite(baseSpriteSheet, 2, destinationX, destinationY, 0, 1, 1, baseSpriteW / 2, baseSpriteH / 2)
 
         -- UI
-        local angleToBase = math.atan2(baseY - player.body:getY(), baseX - player.body:getX())
-        drawSprite(arrowFilledSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToBase), player.body:getY() + arrowRadius * math.sin(angleToBase), angleToBase + math.pi / 2, 1, 1, 3.5, 2)
+        local angleToDestination = math.atan2(destinationY - player.body:getY(), destinationX - player.body:getX())
+        drawSprite(arrowFilledSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToDestination), player.body:getY() + arrowRadius * math.sin(angleToDestination), angleToDestination + math.pi / 2, 1, 1, 3.5, 2)
 
-        -- crates
+        -- arrow to crates
         for i = 1, #objects.crates do
             local crate = objects.crates[i]
             local userData = crate.fixture:getUserData()
@@ -436,20 +565,22 @@ function GameMode:Draw()
                 drawSprite(arrowOpenSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToCrate), player.body:getY() + arrowRadius * math.sin(angleToCrate), angleToCrate + math.pi / 2, 1, 1, 3.5, 2)
             end
         end
-        -- love.graphics.setColor(1,0,0)
-        -- love.graphics.circle("fill", 0, 0, 20)
+        -- debug
+        -- for i = 0, 1 do
+        --     love.graphics.setColor(0.20, 0.20, 0.20) -- set the drawing color to grey for the blocks
+        --     love.graphics.polygon("fill", base.ceil[i].body:getWorldPoints(base.ceil[i].shape:getPoints()))
+        --     love.graphics.polygon("fill", base.wall[i].body:getWorldPoints(base.wall[i].shape:getPoints()))
+        --     love.graphics.polygon("fill", base.ground[i].body:getWorldPoints(base.ground[i].shape:getPoints()))
+        --     love.graphics.polygon("fill", base.mid[i].body:getWorldPoints(base.mid[i].shape:getPoints()))
+        -- end
+        love.graphics.setColor(1, 1, 1) -- set the drawing color to grey for the blocks
     cameraUnset(camera)
 
-     -- scale graphics to current expected scale (resScale)
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
-        -- foreground
-        love.graphics.setColor(1,1,1)
-        for i = 1, #foregroundBubz do
-            local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
-            love.graphics.translate(-translateX, -translateY)
-                drawSprite(backgroundBubzSprites[foregroundBubz[i].size], 1, foregroundBubz[i].px, foregroundBubz[i].py, 0, 1, 1)
-            love.graphics.translate(translateX, translateY)
-        end
+        local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
+        love.graphics.translate(-translateX, -translateY)
+            love.graphics.draw(foregroundBubzCanvas, -foregroundBubzCanvas:getWidth() / 2, -foregroundBubzCanvas:getHeight() / 2)
+        love.graphics.translate(translateX, translateY)
     love.graphics.scale(camera.scaleX, camera.scaleY)
 end
 
