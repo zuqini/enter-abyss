@@ -366,6 +366,8 @@ end
 
 function GameMode:Draw()
     -- first scale graphics to current expected scale (resScale)
+    -- btw, this is an incorrect approximation of parallax zooming in 2D, need more investigation
+    -- for real parallax zooming, we need to simulate camera becoming closer to the scene rather than simply scaling/magnifying
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
         --bubbles
         for i = 1, #backgroundBubz do
