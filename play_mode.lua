@@ -367,24 +367,12 @@ end
 function GameMode:Draw()
     -- first scale graphics to current expected scale (resScale)
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
-        -- background
-        -- translate camera position by parallax
-        love.graphics.translate(-camera.x * parallaxScale, -camera.y * parallaxScale)
-            love.graphics.setColor(1,1,1)
-
-            -- background image
-            -- for i = 1, math.ceil(worldWidth / 32) do
-            --     for j = 1, math.ceil(worldHeight / 32) do
-            --         drawSprite(backgroundSprite, 1, (i - 1) * 32, (j - 1) * 32, 0, 1, 1, 16, 16)
-            --     end
-            -- end
-        love.graphics.translate(camera.x * parallaxScale, camera.y * parallaxScale)
-
         --bubbles
         for i = 1, #backgroundBubz do
-            love.graphics.translate(-camera.x * parallaxScale * backgroundBubz[i].size, -camera.y * parallaxScale * backgroundBubz[i].size)
+            local translateX, translateY = camera.x * parallaxScale * backgroundBubz[i].size, camera.y * parallaxScale * backgroundBubz[i].size
+            love.graphics.translate(-translateX, -translateY)
                 drawSprite(backgroundBubzSprites[backgroundBubz[i].size], 1, backgroundBubz[i].px, backgroundBubz[i].py, 0, 1, 1)
-            love.graphics.translate(camera.x * parallaxScale * backgroundBubz[i].size, camera.y * parallaxScale * backgroundBubz[i].size)
+            love.graphics.translate(translateX, translateY)
         end
     -- pop for cameraSet to rescale back
     love.graphics.scale(camera.scaleX, camera.scaleY)
@@ -455,9 +443,10 @@ function GameMode:Draw()
         -- foreground
         love.graphics.setColor(1,1,1)
         for i = 1, #foregroundBubz do
-            love.graphics.translate(-camera.x * foregroundParallaxScale, -camera.y * foregroundParallaxScale)
+            local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
+            love.graphics.translate(-translateX, -translateY)
                 drawSprite(backgroundBubzSprites[foregroundBubz[i].size], 1, foregroundBubz[i].px, foregroundBubz[i].py, 0, 1, 1)
-            love.graphics.translate(camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale)
+            love.graphics.translate(translateX, translateY)
         end
     love.graphics.scale(camera.scaleX, camera.scaleY)
 end
