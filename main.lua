@@ -11,7 +11,8 @@ currentMode = nil
 
 resWidth = 160
 resHeight= 144
-resScale = 5
+resScale = 1
+viewportScale = 5
 
 spriteWidth = 128
 spriteHeight = spriteWidth
@@ -34,7 +35,7 @@ function love.load()
     fontUltraSmall:setFilter( "nearest", "nearest" )
 
 
-    love.window.setMode(resWidth * resScale, resHeight * resScale)
+    love.window.setMode(resWidth * viewportScale, resHeight * viewportScale)
     love.graphics.setDefaultFilter("nearest", "nearest")
 
     backgroundMusic = love.audio.newSource("assets/the-abyss-2.wav", "stream")
