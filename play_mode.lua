@@ -598,8 +598,8 @@ function GameMode:Draw()
         for size = 1, #backgroundBubzCanvas do
             local translateX, translateY = camera.x * parallaxScale * size, camera.y * parallaxScale * size
             love.graphics.translate(-translateX, -translateY)
-            for i = -10, 100 do
-                for j = -10, 10 do
+            for i = -3, 3 do
+                for j = -3, 3 do
                     love.graphics.draw(backgroundBubzCanvas[size], i * backgroundBubzCanvas[size]:getWidth(), j * backgroundBubzCanvas[size]:getHeight())
                 end
             end
@@ -688,8 +688,8 @@ function GameMode:Draw()
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
         local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
         love.graphics.translate(-translateX, -translateY)
-        for i = -100, 100 do
-            for j = -100, 100 do
+        for i = -3, 3 do
+            for j = -3, 3 do
                 love.graphics.draw(foregroundBubzCanvas, i * foregroundBubzCanvas:getWidth(), j * foregroundBubzCanvas:getHeight())
             end
         end
