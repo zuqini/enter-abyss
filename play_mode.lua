@@ -4,11 +4,11 @@ require 'slidable_utils'
 local GameMode = {}
 GameMode.modeName = "Play Mode"
 
-local worldWidth = resWidth * 20
-local worldHeight = resHeight * 5
+local worldWidth = resWidth * 30
+local worldHeight = resHeight * 20
 local parallaxScale = 0.2
 local parallaxWorldSizeMultiplier = 1
-local foregroundParallaxScale = 1
+local foregroundParallaxScale = 2
 local parallaxWorldSizeMultiplierForeground = 1
 
 --local initialScale = 0.2 * resScale
@@ -19,7 +19,7 @@ local startupZoomTimer = 0
 local crateWidth, crateHeight = 12, 12
 local baseSpriteW, baseSpriteH = 151,74
 local baseW, baseH = 150,73
-local baseX, baseY = 0 + baseSpriteW / 2, 0 + baseSpriteH / 2
+local baseX, baseY = 0 + baseSpriteW / 2, worldHeight / 2 + baseSpriteH / 2
 local destinationX, destinationY = 0, 0
 
 local w, h = baseW, baseH
@@ -229,7 +229,7 @@ function GameMode:Init()
     baseSpriteSheet = newSpriteSheet(love.graphics.newImage("assets/base-2-sheet.png"), baseSpriteW, baseSpriteH)
 
     --let's create a ball
-    player.body = love.physics.newBody(world, 20, 20, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
+    player.body = love.physics.newBody(world, 20, worldHeight / 2 + 20, "dynamic") --place the body in the center of the world and make it dynamic, so it can move around
     player.body:setFixedRotation(true)
     player.shape = love.physics.newCircleShape(8) --the ball's shape has a radius of 12
     player.fixture = love.physics.newFixture(player.body, player.shape, 5) -- Attach fixture to body and give it a density of 1.
@@ -300,7 +300,7 @@ function GameMode:Init()
     for size = 1, #backgroundBubzCanvas do
         love.graphics.setCanvas(backgroundBubzCanvas[size])
         love.graphics.clear()
-        for i = 1, 500 do
+        for i = 1, 2000 do
             local w = worldWidth * parallaxScale * size * parallaxWorldSizeMultiplier
             local h = worldHeight * parallaxScale * size * parallaxWorldSizeMultiplier
             drawSprite(backgroundBubzSprites[size], 1, math.random(1, w), math.random(1, h), 0, 1, 1)
@@ -465,8 +465,8 @@ function GameMode:Update(dt)
             crateData.fixture:setCategory(2)
 
             local randomAngle = math.rad(math.random(1,360))
-            local xImpulse = 8000 * math.cos(randomAngle)
-            local yImpulse = 8000 * math.sin(randomAngle)
+            local xImpulse = 5000 * math.cos(randomAngle)
+            local yImpulse = 5000 * math.sin(randomAngle)
             crateData.body:applyLinearImpulse(xImpulse, yImpulse)
         end
     end
@@ -681,6 +681,15 @@ function GameMode:Draw()
     cameraUnset(camera)
 
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
+        local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
+        love.graphics.translate(-translateX, -translateY)
+        for i = -100, 100 do
+            for j = -100, 100 do
+                love.graphics.draw(foregroundBubzCanvas, i * foregroundBubzCanvas:getWidth(), j * foregroundBubzCanvas:getHeight())
+            end
+        end
+        love.graphics.translate(translateX, translateY)
+
         love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
         love.graphics.rectangle("fill", 5, 5, oxygenMeter, 5) -- draw a "filled in" polygon using the ground's coordinates
     love.graphics.scale(camera.scaleX, camera.scaleY)
