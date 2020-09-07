@@ -363,21 +363,21 @@ end
 
 function GameMode:HandleMouseWheel(x, y)
     -- Zoom towards the mouse cursor
-    local worldMouseX, worldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
-    -- Zoom towards center
-    -- local old_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
-    -- local old_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
-    camera.scaleX = clamp(camera.scaleX - y * 0.01, 0.2, 5)
-    camera.scaleY = clamp(camera.scaleY - y * 0.01, 0.2, 5)
-    local newWorldMouseX, newWorldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
-    -- local new_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
-    -- local new_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
-    -- local dx = new_cx - old_cx
-    -- local dy = new_cy - old_cy
-    local dx = newWorldMouseX - worldMouseX
-    local dy = newWorldMouseY - worldMouseY
-    camera.x = camera.x - dx
-    camera.y = camera.y - dy
+    -- local worldMouseX, worldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
+    -- -- Zoom towards center
+    -- -- local old_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
+    -- -- local old_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
+    -- camera.scaleX = clamp(camera.scaleX - y * 0.01, 0.2, 5)
+    -- camera.scaleY = clamp(camera.scaleY - y * 0.01, 0.2, 5)
+    -- local newWorldMouseX, newWorldMouseY = love.mouse.getX() * camera.scaleX + camera.x, love.mouse.getY() * camera.scaleY + camera.y
+    -- -- local new_cx = camera.x + (camera.scaleX * love.graphics.getWidth())/2
+    -- -- local new_cy = camera.y + (camera.scaleY * love.graphics.getHeight())/2
+    -- -- local dx = new_cx - old_cx
+    -- -- local dy = new_cy - old_cy
+    -- local dx = newWorldMouseX - worldMouseX
+    -- local dy = newWorldMouseY - worldMouseY
+    -- camera.x = camera.x - dx
+    -- camera.y = camera.y - dy
 end
 
 local function updateDoors(structure, dt)
