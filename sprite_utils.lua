@@ -22,7 +22,7 @@ function updateAnimation(animation, dt)
 end
 
 function drawAnimation(animation, x, y, r, sx, sy, ox, oy)
-    local spriteNum = math.floor(animation.currentTime / animation.duration * #animation.spriteSheet.quads) + 1
+    local spriteNum = math.floor(math.min(1, animation.currentTime / animation.duration) * #animation.spriteSheet.quads) + 1
     love.graphics.draw(animation.spriteSheet.image, animation.spriteSheet.quads[spriteNum], x, y, r, sx, sy, ox, oy)
 end
 
@@ -41,7 +41,6 @@ function newSpriteSheet(image, width, height, padding)
         xStride = xStride + padding
         yStride = yStride + padding
     end
-
     for y = 0, image:getHeight() - height, yStride do
         for x = 0, image:getWidth() - width, xStride do
             table.insert(spriteSheet.quads, love.graphics.newQuad(x, y, width, height, image:getDimensions()))

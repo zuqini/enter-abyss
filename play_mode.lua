@@ -203,10 +203,9 @@ local function replaceFish()
 end
 
 function GameMode:Init()
+    love.graphics.setBackgroundColor(55,148,110)
     deliveredCrates = 0
     oxygenMeter = 100
-
-    mainCanvas = love.graphics.newCanvas(160, 144),
 
     love.graphics.setFont(fontUltraSmall)
     isStartupFinished = false
@@ -295,9 +294,8 @@ function GameMode:Init()
     -- however, when player zooms out when there is very few bubbles, the innacurate parallax zooming becomes obvious (2d limitations with parallax implementation)
     -- either remove zoom to dynamically generate bubbles with parallax, or keep zoom and instead just have a lot of bubbles
     backgroundBubzCanvas = {
-        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale, parallaxWorldSizeMultiplier * worldHeight * parallaxScale),
-        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale * 2, parallaxWorldSizeMultiplier * worldHeight * parallaxScale * 2),
-        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale * 3, parallaxWorldSizeMultiplier * worldHeight * parallaxScale * 3)
+        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale * 1, parallaxWorldSizeMultiplier * worldHeight * parallaxScale * 1),
+        love.graphics.newCanvas(parallaxWorldSizeMultiplier * worldWidth * parallaxScale * 2, parallaxWorldSizeMultiplier * worldHeight * parallaxScale * 2)
     }
     for size = 1, #backgroundBubzCanvas do
         love.graphics.setCanvas(backgroundBubzCanvas[size])
@@ -305,7 +303,7 @@ function GameMode:Init()
         for i = 1, 2000 do
             local w = worldWidth * parallaxScale * size * parallaxWorldSizeMultiplier
             local h = worldHeight * parallaxScale * size * parallaxWorldSizeMultiplier
-            drawSprite(backgroundBubzSprites[size], 1, math.random(1, w), math.random(1, h), 0, 1, 1)
+            drawSprite(backgroundBubzSprites[size+1], 1, math.random(1, w), math.random(1, h), 0, 1, 1)
         end
         love.graphics.setCanvas()
     end
@@ -323,6 +321,7 @@ function GameMode:Init()
     psystem:setParticleLifetime(1, 2)
     psystem:setSizes(0.125, 0.25, 0.375, 0.5)
     psystem:setEmissionRate(0)
+    backgroundMusic:play()
 end
 
 function GameMode:HandleKeyReleased(key, scancode, isrepeat)
@@ -581,9 +580,7 @@ local function drawDoors(structure)
 end
 
 function GameMode:Draw()
-    love.graphics.setCanvas(mainCanvas)
-    love.graphics.clear()
-    love.graphics.setColor(1, 1, 1)
+    love.graphics.setColor(255,255,255)
     -- first scale graphics to current expected scale (resScale)
     -- btw, this is an incorrect approximation of parallax zooming in 2D, need more investigation
     -- for real parallax zooming, we need to simulate camera becoming closer to the scene rather than simply scaling/magnifying
@@ -595,24 +592,25 @@ function GameMode:Draw()
         -- love.graphics.translate(translateX, translateY)
 
         -- bubbles
-        for size = 1, #backgroundBubzCanvas do
+        for size=1,#backgroundBubzCanvas do
             local translateX, translateY = camera.x * parallaxScale * size, camera.y * parallaxScale * size
             love.graphics.translate(-translateX, -translateY)
-            for i = -10, 100 do
-                for j = -10, 10 do
+            for i = -2, 2 do
+                for j = -2, 2 do
                     love.graphics.draw(backgroundBubzCanvas[size], i * backgroundBubzCanvas[size]:getWidth(), j * backgroundBubzCanvas[size]:getHeight())
                 end
             end
             love.graphics.translate(translateX, translateY)
         end
+        
     -- pop for cameraSet to rescale back
     love.graphics.scale(camera.scaleX, camera.scaleY)
     cameraSet(camera)
         -- foreground
-        love.graphics.setColor(106/255, 190/255, 48/255) -- set the drawing color to green for the ground
+        love.graphics.setColor(106, 190, 48) -- set the drawing color to green for the ground
         love.graphics.polygon("fill", objects.ground.body:getWorldPoints(objects.ground.shape:getPoints())) -- draw a "filled in" polygon using the ground's coordinates
 
-        love.graphics.setColor(1,1,1)
+        love.graphics.setColor(255,255,255)
 
         drawDoors(objects.base)
         drawDoors(objects.destination)
@@ -623,7 +621,7 @@ function GameMode:Draw()
         for i = 1, #player.crates do
             local playerCrateData = player.crates[i]
             local playerCrate = objects.crates[playerCrateData.index]
-            love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
+            love.graphics.setColor(153, 229, 80) -- set the drawing color to green for the line
             if i == 1 then
                 love.graphics.line(player.body:getX(), player.body:getY(), playerCrate.body:getX(), playerCrate.body:getY())
             else
@@ -631,7 +629,7 @@ function GameMode:Draw()
                 love.graphics.line(playerCrate.body:getX(), playerCrate.body:getY(), prevCrate.body:getX(), prevCrate.body:getY())
             end
         end
-        love.graphics.setColor(1,1,1)
+        love.graphics.setColor(255,255,255)
 
         -- crates
         for i = 1, #objects.crates do
@@ -680,31 +678,26 @@ function GameMode:Draw()
         --     love.graphics.polygon("fill", base.ground[i].body:getWorldPoints(base.ground[i].shape:getPoints()))
         --     love.graphics.polygon("fill", base.mid[i].body:getWorldPoints(base.mid[i].shape:getPoints()))
         -- end
-        love.graphics.setColor(1, 1, 1) -- set the drawing color to grey for the blocks
+        love.graphics.setColor(255,255,255) -- set the drawing color to grey for the blocks
         
     cameraUnset(camera)
 
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
         local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
         love.graphics.translate(-translateX, -translateY)
-        for i = -100, 100 do
-            for j = -100, 100 do
+        for i = -2, 2 do
+            for j = -2, 2 do
                 love.graphics.draw(foregroundBubzCanvas, i * foregroundBubzCanvas:getWidth(), j * foregroundBubzCanvas:getHeight())
             end
         end
         love.graphics.translate(translateX, translateY)
 
-        love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
+        love.graphics.setColor(153, 229, 80) -- set the drawing color to green for the line
         love.graphics.rectangle("fill", 5, 5, oxygenMeter, 5) -- draw a "filled in" polygon using the ground's coordinates
     love.graphics.scale(camera.scaleX, camera.scaleY)
-    love.graphics.setCanvas()
-    love.graphics.scale(viewportScale, viewportScale)
-    love.graphics.draw(mainCanvas)
-    love.graphics.scale(1/viewportScale, 1/viewportScale)
 end
 
 function GameMode:TransitionIn()
-    backgroundMusic:play()
 end
 
 function GameMode:TransitionOut()

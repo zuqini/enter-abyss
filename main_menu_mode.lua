@@ -7,7 +7,6 @@ GameMode.modeName = "Main Menu"
 
 function GameMode:Init()
     menuSprite = newSpriteSheet(love.graphics.newImage("assets/Start Page.png"), 160, 144)
-    mainMenuCanvas = love.graphics.newCanvas(160, 144)
 end
 
 function GameMode:HandleKeyReleased(key, scancode, isrepeat)
@@ -33,22 +32,12 @@ function GameMode:HandleMouseWheel(x, y)
 end
 
 function GameMode:Update(dt)
-    
 end
 
 function GameMode:Draw()
-    love.graphics.setCanvas(mainMenuCanvas)
-    love.graphics.clear()
-    love.graphics.setBackgroundColor(55/255,148/255,110/255)
-    love.graphics.setColor(1,1,1,1)
+    love.graphics.setColor(255,255,255)
     drawSprite(menuSprite, 1, 0, 0, 0, 1, 1, 0, 0)
-    love.graphics.setColor(1,1,1,1)
-    love.graphics.setCanvas()
-    love.graphics.scale(viewportScale, viewportScale)
-    love.graphics.draw(mainMenuCanvas)
-    love.graphics.scale(1/viewportScale, 1/viewportScale)
-    love.graphics.setBackgroundColor(55/255,148/255,110/255)
-    love.graphics.setColor(1,1,1,1)
+    love.graphics.setColor(255,255,255)
 end
 
 function GameMode:TransitionIn()

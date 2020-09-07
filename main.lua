@@ -12,7 +12,7 @@ currentMode = nil
 resWidth = 160
 resHeight= 144
 resScale = 1
-viewportScale = 5
+viewportScale = 1
 
 spriteWidth = 128
 spriteHeight = spriteWidth
@@ -26,6 +26,7 @@ function love.load()
     math.randomseed(os.time())
     love.window.setTitle("Enter Abyss")
     love.window.setIcon(love.image.newImageData("assets/icon.png") )
+    
     font = love.graphics.newFont("assets/PixelOperator-Bold.ttf", 20)
     font:setFilter( "nearest", "nearest" )
     fontSmall = love.graphics.newFont("assets/PixelOperator.ttf", 10)
@@ -34,9 +35,8 @@ function love.load()
     fontUltraSmall = love.graphics.newFont("assets/PixelOperator.ttf", 5)
     fontUltraSmall:setFilter( "nearest", "nearest" )
 
-
     love.window.setMode(resWidth * viewportScale, resHeight * viewportScale)
-    love.graphics.setDefaultFilter("nearest", "nearest")
+    love.graphics.setDefaultFilter("nearest", "nearest", 0)
 
     backgroundMusic = love.audio.newSource("assets/the-abyss-2.wav", "stream")
     backgroundMusic:setLooping(true)
