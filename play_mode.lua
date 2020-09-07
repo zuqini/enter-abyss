@@ -206,6 +206,8 @@ function GameMode:Init()
     deliveredCrates = 0
     oxygenMeter = 100
 
+    mainCanvas = love.graphics.newCanvas(160, 144),
+
     love.graphics.setFont(fontUltraSmall)
     isStartupFinished = false
     camera = cameraInit(0, 0, 1/initialScale, 1/initialScale, 0)
@@ -579,6 +581,8 @@ local function drawDoors(structure)
 end
 
 function GameMode:Draw()
+    love.graphics.setCanvas(mainCanvas)
+    love.graphics.clear()
     love.graphics.setColor(1, 1, 1)
     -- first scale graphics to current expected scale (resScale)
     -- btw, this is an incorrect approximation of parallax zooming in 2D, need more investigation
@@ -693,6 +697,9 @@ function GameMode:Draw()
         love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
         love.graphics.rectangle("fill", 5, 5, oxygenMeter, 5) -- draw a "filled in" polygon using the ground's coordinates
     love.graphics.scale(camera.scaleX, camera.scaleY)
+    love.graphics.setCanvas()
+    love.graphics.scale(viewportScale, viewportScale)
+    love.graphics.draw(mainCanvas)
 end
 
 function GameMode:TransitionIn()

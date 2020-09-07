@@ -39,7 +39,7 @@ function cameraSet(camera, isCenter)
     love.graphics.scale(1 / camera.scaleX, 1 / camera.scaleY)
     love.graphics.rotate(-camera.rotation)
     if isCenter then
-        love.graphics.translate(-camera.cx + (camera.scaleX * love.graphics.getWidth())/2, -camera.cy + (camera.scaleY *love.graphics.getHeight())/2)
+        love.graphics.translate(-camera.cx + (camera.scaleX * 160)/2, -camera.cy + (camera.scaleY *144)/2)
     else
         love.graphics.translate(-camera.x, -camera.y)
     end
@@ -55,7 +55,7 @@ function cameraSetTarget(camera, tx, ty)
 end
 
 function cameraSetTargetCenter(camera, tx, ty)
-    cameraSetTarget(camera, tx - (camera.scaleX * love.graphics.getWidth())/2, ty - (camera.scaleY *love.graphics.getHeight())/2)
+    cameraSetTarget(camera, tx - (camera.scaleX * 160)/2, ty - (camera.scaleY * 144)/2)
 end
 
 function cameraUnset(camera)
@@ -94,9 +94,9 @@ end
 
 function cameraSetPositionCenter(camera, x, y)
     camera.x = x or camera.x
-    camera.x = camera.x - (camera.scaleX * love.graphics.getWidth())/2
+    camera.x = camera.x - 144/2
     camera.y = y or camera.y
-    camera.y = camera.y - (camera.scaleY * love.graphics.getHeight())/2
+    camera.y = camera.y - 160/2
 end
 
 function cameraSetScale(camera, sx, sy)
@@ -109,11 +109,11 @@ function cameraGetMousePosition(camera)
 end
 
 function rectIntersectsCamera(camera, x, y, w, h)
-    return AABB2Intersection(camera.x, camera.y, camera.scaleX * love.graphics.getWidth(), camera.scaleY * love.graphics.getHeight(), x, y, w, h)
+    return AABB2Intersection(camera.x, camera.y, camera.scaleX * 160, camera.scaleY * 144, x, y, w, h)
 end
 
 function rectInsideCamera(camera, x, y, w, h)
-    return AABB2Overlaps(camera.x, camera.y, camera.scaleX * love.graphics.getWidth(), camera.scaleY * love.graphics.getHeight(), x, y, w, h)
+    return AABB2Overlaps(camera.x, camera.y, camera.scaleX * 160, camera.scaleY * 144, x, y, w, h)
 end
 
 -- TODO(ray): Should maybe be in a geometry/math/utils file
