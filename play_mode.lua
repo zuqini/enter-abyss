@@ -210,7 +210,7 @@ function GameMode:Init()
     isStartupFinished = false
     camera = cameraInit(0, 0, 1/initialScale, 1/initialScale, 0)
     player = {
-        forwardThrust = 60000,
+        forwardThrust = 80000,
         angularThrust = 0.03,
         pitch = 0,
         orientation = 1,
@@ -595,7 +595,7 @@ function GameMode:Draw()
             local translateX, translateY = camera.x * parallaxScale * size, camera.y * parallaxScale * size
             love.graphics.translate(-translateX, -translateY)
             for i = -10, 100 do
-                for j = -10, 100 do
+                for j = -10, 10 do
                     love.graphics.draw(backgroundBubzCanvas[size], i * backgroundBubzCanvas[size]:getWidth(), j * backgroundBubzCanvas[size]:getHeight())
                 end
             end
