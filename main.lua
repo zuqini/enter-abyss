@@ -13,10 +13,6 @@ resWidth = 160
 resHeight= 144
 resScale = 5
 
-defaultFont12Pt = love.graphics.newFont(12)
-defaultFont14Pt = love.graphics.newFont(14)
-defaultFont24Pt = love.graphics.newFont(24)
-
 spriteWidth = 128
 spriteHeight = spriteWidth
 spriteScale = 0.5
@@ -27,6 +23,17 @@ local PlayMode = require 'play_mode'
 
 function love.load()
     math.randomseed(os.time())
+    love.window.setTitle("Enter Abyss")
+    love.window.setIcon(love.image.newImageData("assets/icon.png") )
+    font = love.graphics.newFont("assets/PixelOperator-Bold.ttf", 20)
+    font:setFilter( "nearest", "nearest" )
+    fontSmall = love.graphics.newFont("assets/PixelOperator.ttf", 10)
+    fontSmall:setFilter( "nearest", "nearest" )
+
+    fontUltraSmall = love.graphics.newFont("assets/PixelOperator.ttf", 5)
+    fontUltraSmall:setFilter( "nearest", "nearest" )
+
+
     love.window.setMode(resWidth * resScale, resHeight * resScale)
     love.graphics.setDefaultFilter("nearest", "nearest")
 

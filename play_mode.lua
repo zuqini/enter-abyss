@@ -11,7 +11,9 @@ local parallaxWorldSizeMultiplier = 1
 local foregroundParallaxScale = 1
 local parallaxWorldSizeMultiplierForeground = 1
 
-local initialScale = 0.2 * resScale
+--local initialScale = 0.2 * resScale
+local initialScale = resScale
+
 local startupZoomTimer = 0
 
 local crateWidth, crateHeight = 12, 12
@@ -37,7 +39,15 @@ local jointLength = 15
 local arrowRadius = 20
 local fishRange = resWidth * 2
 
-local fishMoveTimer = 1
+local numFish = 16
+local baseCrates = 2
+local outsideCrates = 0
+
+local deliveredCrates = 0
+
+local oxygenMeter = 100
+
+local halfSecondTimer = 1
 local disableCollisionTimer = 3
 
 persisting = 0
@@ -45,6 +55,23 @@ persisting = 0
 -- utils -------------------------------------------------------------
 local function getAngle(orientation, pitch)
     return -orientation * pitch + (orientation > 0 and math.pi or 0)
+end
+
+local function buildCrate(x, y, index)
+    crate = {}
+    crate.isDelivered = false
+    crate.body = love.physics.newBody(world, x, y, "dynamic")
+    crate.shape = love.physics.newRectangleShape(0, 0, crateWidth, crateHeight)
+    crate.fixture = love.physics.newFixture(crate.body, crate.shape, 1) -- A higher density gives it more mass.
+    crate.fixture:setRestitution(0.1)
+    crate.fixture:setUserData({
+        name = "crate",
+        index = index,
+        isAttached = false
+    })
+    crate.fixture:setMask(16)
+    crate.fixture:setCategory(2)
+    return crate
 end
 
 local function buildBase(centerX, centerY, generateCrates)
@@ -124,19 +151,8 @@ local function buildBase(centerX, centerY, generateCrates)
     end
 
     if generateCrates then
-        for i = 1, 3 do
-            objects.crates[i] = {}
-            objects.crates[i].body = love.physics.newBody(world, x + beamWidth + combinedDoorWidth + 0.2 * shelfLength + i * crateWidth, y + h / 2 - crateHeight, "dynamic")
-            objects.crates[i].shape = love.physics.newRectangleShape(0, 0, crateWidth, crateHeight)
-            objects.crates[i].fixture = love.physics.newFixture(objects.crates[i].body, objects.crates[i].shape, 1) -- A higher density gives it more mass.
-            objects.crates[i].fixture:setRestitution(0.1)
-            objects.crates[i].fixture:setUserData({
-                name = "crate",
-                index = i,
-                isAttached = false
-            })
-            objects.crates[i].fixture:setMask(16)
-            objects.crates[i].fixture:setCategory(2)
+        for i = 1, baseCrates do
+            objects.crates[i] = buildCrate(x + beamWidth + combinedDoorWidth + 0.05 * shelfLength + i * crateWidth, y + h / 2 - crateHeight, i)
         end
     end
 
@@ -187,6 +203,10 @@ local function replaceFish()
 end
 
 function GameMode:Init()
+    deliveredCrates = 0
+    oxygenMeter = 100
+
+    love.graphics.setFont(fontUltraSmall)
     isStartupFinished = false
     camera = cameraInit(0, 0, 1/initialScale, 1/initialScale, 0)
     player = {
@@ -222,7 +242,7 @@ function GameMode:Init()
     --let's create the ground
     objects.ground = {}
     objects.ground.body = love.physics.newBody(world, worldWidth/2 * 0.2, worldHeight) --remember, the shape (the rectangle we create next) anchors to the body from its center, so we have to move it to (650/2, 650-50/2)
-    objects.ground.shape = love.physics.newRectangleShape(worldWidth, 10)
+    objects.ground.shape = love.physics.newRectangleShape(worldWidth * 10, 10)
     objects.ground.fixture = love.physics.newFixture(objects.ground.body, objects.ground.shape) --attach shape to body
     objects.ground.fixture:setUserData({
         name = "ground"
@@ -235,7 +255,7 @@ function GameMode:Init()
     fishSprite = newSpriteSheet(love.graphics.newImage("assets/fish-1.png"), 12, 8)
     jellyFishAnimation = newAnimation(love.graphics.newImage("assets/Jelly-sheet.png"), 7, 10, 0.5)
     objects.fishes = {}
-    for i = 1, 128 do
+    for i = 1, numFish do
         local scaledWidth, scaledHeight = resWidth * resScale, resHeight * resScale
         -- hack for time to not generate inside base
         local x, y = baseX, baseY
@@ -246,9 +266,14 @@ function GameMode:Init()
     end
 
     objects.base = buildBase(baseX, baseY, true)
-
     destinationX, destinationY = math.random(worldWidth * 0.2, worldWidth), math.random(0, worldHeight)
     objects.destination = buildBase(destinationX, destinationY)
+
+    -- random crates to pickup
+    for i = 1, outsideCrates do
+        table.insert(objects.crates, buildCrate(math.random(0, worldWidth), math.random(0, worldHeight), #objects.crates + 1))
+    end
+
 
     leftDoorSprite = newSpriteSheet(love.graphics.newImage("assets/door-left.png"), 19, 6)
     rightDoorSprite = newSpriteSheet(love.graphics.newImage("assets/door-right.png"), 18, 6)
@@ -316,7 +341,6 @@ function GameMode:HandleKeyPressed(key, scancode, isrepeat)
             crateData.fixture:setUserData(userData)
             crateData.fixture:setCategory(2)
 
-
             local xImpulse = -15000 * math.cos(getAngle(player.orientation, player.pitch))
             local yImpulse = -15000 * math.sin(getAngle(player.orientation, player.pitch))
             crateData.body:applyLinearImpulse(xImpulse, yImpulse)
@@ -331,8 +355,6 @@ function GameMode:HandleKeyPressed(key, scancode, isrepeat)
 end
 
 function GameMode:HandleMousePressed(x, y, button, istouch, presses)
-    mouse_x, mouse_y = cameraGetMousePosition(camera)
-    print(mouse_x, mouse_y)
 end
 
 function GameMode:HandleMouseReleased(x, y, button, istouch, presses)
@@ -401,6 +423,12 @@ function GameMode:Update(dt)
         end
     end
 
+    for k = 1, #player.crates do
+        local playerCrateData = player.crates[#player.crates]
+        local playerCrate = objects.crates[playerCrateData.index]
+        local distance = getDistance(playerCrate.body:getX(), playerCrate.body:getY(), destinationX, destinationY)
+    end
+
     for i = 1, #crateColLinkBuffer do
         local crateCol = crateColLinkBuffer[i]
         local crate = objects.crates[crateCol.index]
@@ -437,14 +465,60 @@ function GameMode:Update(dt)
             crateData.fixture:setCategory(2)
 
             local randomAngle = math.rad(math.random(1,360))
-            local xImpulse = 5000 * math.cos(randomAngle)
-            local yImpulse = 5000 * math.sin(randomAngle)
+            local xImpulse = 8000 * math.cos(randomAngle)
+            local yImpulse = 8000 * math.sin(randomAngle)
             crateData.body:applyLinearImpulse(xImpulse, yImpulse)
         end
     end
 
-    if fishMoveTimer > 0.5 then
-        fishMoveTimer = 0
+    for i=1,#objects.crates do
+        local crate = objects.crates[i]
+        if crate.isDelivered == false and crate.fixture:getUserData().isAttached == false and crate.body:getX() > destinationX - baseW / 2 and crate.body:getX() < destinationX + baseW / 2 and
+        crate.body:getY() > destinationY - baseH / 2 and crate.body:getY() < destinationY + baseH / 2 then
+            crate.isDelivered = true
+            deliveredCrates = deliveredCrates + 1
+        end
+    end
+    
+    if deliveredCrates == outsideCrates + baseCrates then
+        if baseCrates == 2 and outsideCrates == 0 then
+            numFish = 16
+            baseCrates = 2
+            outsideCrates = 1
+        elseif baseCrates == 2 and outsideCrates == 1 then
+            numFish = 32
+            baseCrates = 3
+            outsideCrates = 2
+        elseif baseCrates == 3 and outsideCrates == 2 then
+            numFish = 32
+            baseCrates = 4
+            outsideCrates = 2
+        elseif baseCrates == 4 and outsideCrates == 2 then
+            numFish = 64
+            baseCrates = 4
+            outsideCrates = 3
+        elseif baseCrates == 4 and outsideCrates == 3 then
+            numFish = 128
+            baseCrates = 4
+            outsideCrates = 3
+        end
+        SetCurrentGameMode("Play Mode", nil, true)
+    end
+
+    if halfSecondTimer > 0.5 then
+        halfSecondTimer = 0
+        if (player.body:getX() > baseX - baseW / 2 and player.body:getX() < baseX + baseW / 2 and
+            player.body:getY() > baseY - baseH / 2 and player.body:getY() < baseY + baseH / 2) or 
+            (player.body:getX() > destinationX - baseW / 2 and player.body:getX() < destinationX + baseW / 2 and
+            player.body:getY() > destinationY - baseH / 2 and player.body:getY() < destinationY + baseH / 2) then
+            oxygenMeter = math.min(100, oxygenMeter + 0.5)
+        else
+            oxygenMeter = oxygenMeter - 0.2
+            if oxygenMeter <= 0 then
+                SetCurrentGameMode("Main Menu", nil, true)
+            end
+        end
+
         for i = 1, #objects.fishes do
             local xImpulse = -500 + 100 * math.random(1, 10)
             local yImpulse = -10 * math.random(1, 20)
@@ -452,7 +526,7 @@ function GameMode:Update(dt)
             objects.fishes[i].orientation = xImpulse < 0 and -1 or 1
         end
     end
-    fishMoveTimer = fishMoveTimer + dt
+    halfSecondTimer = halfSecondTimer + dt
 
     if disableCollisionTimer < 2 then
         player.fixture:setCategory(16)
@@ -505,6 +579,7 @@ local function drawDoors(structure)
 end
 
 function GameMode:Draw()
+    love.graphics.setColor(1, 1, 1)
     -- first scale graphics to current expected scale (resScale)
     -- btw, this is an incorrect approximation of parallax zooming in 2D, need more investigation
     -- for real parallax zooming, we need to simulate camera becoming closer to the scene rather than simply scaling/magnifying
@@ -582,7 +657,7 @@ function GameMode:Draw()
         -- UI
         local angleToDestination = math.atan2(destinationY - player.body:getY(), destinationX - player.body:getX())
         drawSprite(arrowFilledSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToDestination), player.body:getY() + arrowRadius * math.sin(angleToDestination), angleToDestination + math.pi / 2, 1, 1, 3.5, 2)
-
+        
         -- arrow to crates
         for i = 1, #objects.crates do
             local crate = objects.crates[i]
@@ -592,6 +667,7 @@ function GameMode:Draw()
                 drawSprite(arrowOpenSprite, 1, player.body:getX() + arrowRadius * math.cos(angleToCrate), player.body:getY() + arrowRadius * math.sin(angleToCrate), angleToCrate + math.pi / 2, 1, 1, 3.5, 2)
             end
         end
+
         -- debug
         -- for i = 0, 1 do
         --     love.graphics.setColor(0.20, 0.20, 0.20) -- set the drawing color to grey for the blocks
@@ -601,13 +677,12 @@ function GameMode:Draw()
         --     love.graphics.polygon("fill", base.mid[i].body:getWorldPoints(base.mid[i].shape:getPoints()))
         -- end
         love.graphics.setColor(1, 1, 1) -- set the drawing color to grey for the blocks
+        
     cameraUnset(camera)
 
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
-        local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
-        love.graphics.translate(-translateX, -translateY)
-            love.graphics.draw(foregroundBubzCanvas, -foregroundBubzCanvas:getWidth() / 2, -foregroundBubzCanvas:getHeight() / 2)
-        love.graphics.translate(translateX, translateY)
+        love.graphics.setColor(153/255, 229/255, 80/255) -- set the drawing color to green for the line
+        love.graphics.rectangle("fill", 5, 5, oxygenMeter, 5) -- draw a "filled in" polygon using the ground's coordinates
     love.graphics.scale(camera.scaleX, camera.scaleY)
 end
 
