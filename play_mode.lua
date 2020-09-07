@@ -683,6 +683,7 @@ function GameMode:Draw()
         love.graphics.setColor(1, 1, 1) -- set the drawing color to grey for the blocks
         
     cameraUnset(camera)
+    love.graphics.setColor(1, 1, 1)
 
     love.graphics.scale(1/camera.scaleX, 1/camera.scaleY)
         local translateX, translateY = camera.x * foregroundParallaxScale, camera.y * foregroundParallaxScale
@@ -699,6 +700,7 @@ function GameMode:Draw()
     love.graphics.scale(camera.scaleX, camera.scaleY)
     love.graphics.setCanvas()
     love.graphics.scale(viewportScale, viewportScale)
+    love.graphics.setColor(1, 1, 1)
     love.graphics.draw(mainCanvas)
     love.graphics.scale(1/viewportScale, 1/viewportScale)
 end
