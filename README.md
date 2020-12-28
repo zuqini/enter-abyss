@@ -3,6 +3,8 @@ A game made for [GBJAM 8](https://itch.io/jam/gbjam-8). Try to deliver all of yo
 
 ![GameGif](https://img.itch.zone/aW1nLzQyMDQwNTcuZ2lm/original/5rylDk.gif)
 
+Play it [here](zuqini.itch.io/enter-abyss)!
+
 ## Controls
 - **W, A, S, D** to orient your ship
 - **J** to thrust
